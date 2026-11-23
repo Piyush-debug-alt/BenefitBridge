@@ -13,6 +13,9 @@
     "notifications": "npm run notifications -w api --",
     "notifications:demo": "npm run notifications:demo -w api --",
     "publish:demo": "npm run publish:demo -w api --",
+    "sync": "npm run sync -w api --",
+    "sync:demo": "npm run sync:demo -w api --",
+    "benchmark": "node scripts/benchmark.mjs",
     "test": "npm test --workspaces",
     "build": "npm run build -w web"
   }

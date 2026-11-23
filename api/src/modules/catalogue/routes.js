@@ -3,9 +3,9 @@ import { HttpError, validate } from '../../middleware/http.js';
 import { listQuery, schemeId } from './validation.js';
 
 const cardFields = 'canonicalName description categoryIds benefitTypes governmentLevel issuer nationwide stateCodes lifecycleStatus verificationStatus lastVerifiedAt';
-const detailFields = cardFields + ' benefits eligibilityText requiredDocuments sourceRefs applicationUrl lastSyncedAt';
+const detailFields = cardFields + ' benefits eligibilityText requiredDocuments sourceRefs applicationUrl applicationDeadline lastSyncedAt relationships disputedFields sourceId currentVersionId';
 
-function buildFilter(base, filters) {
+export function buildFilter(base, filters) {
   const filter = {
     ...base,
     lifecycleStatus: filters.lifecycleStatus ?? { $ne: 'closed' },
@@ -27,22 +27,23 @@ function buildFilter(base, filters) {
   return filter;
 }
 
-export function catalogueRouter(Scheme, dataset) {
+export function searchSchemes(Scheme, published, filters) {
+  const { page, limit } = filters;
+  const filter = buildFilter(published, filters);
+  const query = Scheme.find(filter).select(cardFields);
+  if (filters.q) query.sort({ score: { $meta: 'textScore' }, canonicalName: 1, _id: 1 });
+  else query.sort({ canonicalName: 1, _id: 1 });
+  return [query.skip((page - 1) * limit).limit(limit).lean(), Scheme.countDocuments(filter)];
+}
+
+export function catalogueRouter(Scheme, dataset, SyncSource) {
   const router = Router();
   const published = { dataset, publicationStatus: 'published' };
 
   router.get('/schemes', async (req, res) => {
     const filters = validate(listQuery, req.query);
     const { page, limit } = filters;
-    const filter = buildFilter(published, filters);
-    const query = Scheme.find(filter).select(cardFields);
-    if (filters.q) query.sort({ score: { $meta: 'textScore' }, canonicalName: 1, _id: 1 });
-    else query.sort({ canonicalName: 1, _id: 1 });
-
-    const [items, total] = await Promise.all([
-      query.skip((page - 1) * limit).limit(limit).lean(),
-      Scheme.countDocuments(filter),
-    ]);
+    const [items, total] = await Promise.all(searchSchemes(Scheme, published, filters));
 
     res.json({ dataset, items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   });
@@ -66,8 +67,24 @@ export function catalogueRouter(Scheme, dataset) {
     const id = validate(schemeId, req.params.schemeId);
     const item = await Scheme.findOne({ ...published, _id: id }).select(detailFields).lean();
     if (!item) throw new HttpError(404, 'SCHEME_NOT_FOUND', 'This scheme could not be found.');
-
-    res.json({ dataset, item });
+    const visible = { ...published, verificationStatus: { $in: ['verified', 'under_review', 'disputed', 'stale'] } };
+    const [targets, children, source] = await Promise.all([
+      item.relationships?.length
+        ? Scheme.find({ ...visible, _id: { $in: item.relationships.map(link => link.targetId) } }).select('canonicalName').lean()
+        : [],
+      Scheme.find({ ...visible, relationships: { $elemMatch: { kind: 'variant_of', targetId: id } } })
+        .select('canonicalName stateCodes').sort('canonicalName').limit(50).lean(),
+      SyncSource?.findById(item.sourceId).select('lastSuccessAt lastFailureAt').lean(),
+    ]);
+    const names = new Map(targets.map(target => [String(target._id), target.canonicalName]));
+    const { sourceId, currentVersionId, relationships, ...publicItem } = item;
+    res.json({ dataset, item: {
+      ...publicItem,
+      relationships: (relationships ?? []).flatMap(link => names.has(String(link.targetId))
+        ? [{ ...link, name: names.get(String(link.targetId)) }] : []),
+      variants: children, sourceSyncInterrupted: Boolean(source?.lastFailureAt &&
+        (!source.lastSuccessAt || source.lastFailureAt > source.lastSuccessAt)),
+    } });
   });
 
   return router;

@@ -10,6 +10,8 @@
     "notifications": "node --env-file-if-exists=.env src/modules/notifications/worker-cli.js",
     "notifications:demo": "node --env-file-if-exists=.env.demo src/modules/notifications/worker-cli.js --demo",
     "publish:demo": "node --env-file-if-exists=.env.demo src/modules/notifications/demo-cli.js",
+    "sync": "node --env-file-if-exists=.env src/modules/ingestion/worker-cli.js",
+    "sync:demo": "node --env-file-if-exists=.env.demo src/modules/ingestion/worker-cli.js --demo",
     "test": "vitest run --testTimeout=15000 --hookTimeout=120000"
   },
   "dependencies": {

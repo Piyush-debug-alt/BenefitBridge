@@ -1,0 +1,92 @@
+{
+  "dataset": "synthetic",
+  "source": {
+    "id": "sync-demo",
+    "name": "Fictional synchronization feed",
+    "baseUrl": "https://sync.example.invalid",
+    "accessPermissions": "Application-owned fictional demonstration records",
+    "retentionPolicy": "reference_only"
+  },
+  "retrievedAt": "2026-10-02T00:00:00Z",
+  "records": [
+    {
+      "externalRecordId": "m5-study",
+      "canonicalName": "M5 Study Materials Scheme",
+      "description": "Fictional M5 catalogue record for reproducible synchronization.",
+      "categoryIds": [
+        "Education"
+      ],
+      "governmentLevel": "central",
+      "issuer": "Fictional Education Issuer",
+      "nationwide": true,
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "sourceRefs": [
+        {
+          "label": "Fictional source evidence",
+          "url": "https://sync.example.invalid/m5-study"
+        }
+      ],
+      "benefits": [
+        "Fictional study materials",
+        "Fictional exam practice materials"
+      ],
+      "lastVerifiedAt": "2026-10-01T00:00:00Z",
+      "applicationDeadline": "2026-12-31"
+    },
+    {
+      "record": {
+        "externalRecordId": "m5-study-mh",
+        "canonicalName": "M5 Maharashtra Study Materials Variant",
+        "description": "Fictional M5 catalogue record for reproducible synchronization.",
+        "categoryIds": [
+          "Education"
+        ],
+        "governmentLevel": "state",
+        "issuer": "Fictional Education Issuer",
+        "nationwide": false,
+        "lifecycleStatus": "active",
+        "verificationStatus": "verified",
+        "sourceRefs": [
+          {
+            "label": "Fictional source evidence",
+            "url": "https://sync.example.invalid/m5-study-mh"
+          }
+        ],
+        "benefits": [
+          "Fictional study materials"
+        ],
+        "lastVerifiedAt": "2026-10-01T00:00:00Z",
+        "stateCodes": [
+          "MH"
+        ],
+        "eligibility": {
+          "status": "verified",
+          "evidenceUrl": "https://sync.example.invalid/m5-study-mh",
+          "pathsExhaustive": true,
+          "paths": [
+            {
+              "complete": true,
+              "conditions": [
+                {
+                  "attribute": "age",
+                  "operator": "atLeast",
+                  "value": 18
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "updatedAt": "2026-10-01T00:00:00Z",
+      "relationships": [
+        {
+          "kind": "variant_of",
+          "sourceId": "sync-demo",
+          "externalRecordId": "m5-study",
+          "evidenceUrl": "https://sync.example.invalid/m5-study-mh"
+        }
+      ]
+    }
+  ]
+}

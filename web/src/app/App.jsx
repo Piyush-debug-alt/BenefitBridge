@@ -6,6 +6,7 @@ import { dataset } from '../features/catalogue/client.js';
 import { AccountPage } from '../features/account/AccountPage.jsx';
 import { AuthProvider, useAuth } from '../features/account/AuthProvider.jsx';
 import { NotificationsPage } from '../features/account/NotificationsPage.jsx';
+import { AdminPage } from '../features/account/AdminPage.jsx';
 
 function Header() {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ function Header() {
           <Link to="/">Explore schemes</Link>
           <Link to="/account">{user ? 'Account' : 'Sign in'}</Link>
           {user && <Link to="/account/notifications">Notifications</Link>}
+          {user?.isAdministrator && <Link to="/admin">Administration</Link>}
         </nav>
       </div>
     </header>
@@ -44,6 +46,7 @@ export function App() {
           <Route path="/schemes/:schemeId" element={<SchemePage />} />
           <Route path="/account" element={<AccountPage answers={answers} setAnswers={setAnswers} />} />
           <Route path="/account/notifications" element={<NotificationsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={
             <section className="shell detail-shell">
               <h1>Page unavailable</h1>

@@ -4,6 +4,7 @@ import { createIngestionModels } from '../modules/ingestion/models.js';
 import { createMatchingModels } from '../modules/matching/model.js';
 import { createAccountModels } from '../modules/auth/models.js';
 import { createNotificationModels } from '../modules/notifications/models.js';
+import { createSyncModels } from '../modules/ingestion/sync-models.js';
 
 export async function connectDatabase(config) {
   const connection = mongoose.createConnection(config.uri, {
@@ -20,6 +21,7 @@ export async function connectDatabase(config) {
       ...createMatchingModels(connection),
       ...createAccountModels(connection),
       ...createNotificationModels(connection),
+      ...createSyncModels(connection),
     };
     await Promise.all(Object.values(models).map(model => model.createIndexes()));
     return { connection, models };

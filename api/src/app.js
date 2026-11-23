@@ -6,6 +6,7 @@ import { catalogueRouter } from './modules/catalogue/routes.js';
 import { matchingRouter } from './modules/matching/routes.js';
 import { readAuthConfig } from './modules/auth/config.js';
 import { accountRouter } from './modules/auth/routes.js';
+import { administrationRouter } from './modules/ingestion/admin-routes.js';
 
 export function createApp({ models, dataset, isReady, auth = readAuthConfig({}, dataset), services }) {
   const app = express();
@@ -29,7 +30,8 @@ export function createApp({ models, dataset, isReady, auth = readAuthConfig({}, 
     res.set('X-BenefitBridge-Dataset', dataset);
     if (!isReady()) return next(new HttpError(503, 'DATABASE_UNAVAILABLE', 'The catalogue database is unavailable.'));
     next();
-  }, catalogueRouter(models.Scheme, dataset), matchingRouter(models, dataset), accountRouter(models, dataset, auth, services));
+  }, catalogueRouter(models.Scheme, dataset, models.SyncSource), matchingRouter(models, dataset),
+  accountRouter(models, dataset, auth, services), administrationRouter(models, dataset, auth));
 
   app.use(notFound, handleError);
   return app;

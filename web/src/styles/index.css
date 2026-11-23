@@ -142,6 +142,8 @@ a, button, input, select { outline-offset: 4px; }
 .notification-list li { padding: .85rem 0 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .notification-list button { margin-top: .45rem; }
 .notification-title { font-weight: 700; }
+.admin-grid { margin-top: 1rem; }
+.admin-evidence { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 25rem; overflow: auto; }
 
 @media (max-width: 45rem) {
   .shell { width: calc(100% - 1.75rem); }

@@ -8,7 +8,8 @@ export function createIngestionModels(connection) {
     name: { type: String, required: true },
     baseUrl: { type: String, required: true },
     accessPermissions: { type: String, required: true },
-    retentionPolicy: { type: String, enum: ['reference_only'], required: true },
+    retentionPolicy: { type: String, enum: ['reference_only', 'permitted_original'], required: true },
+    evidenceOrigins: [String],
   }, { collection: 'sources' });
 
   const sourceRecord = new Schema({
@@ -17,6 +18,8 @@ export function createIngestionModels(connection) {
     retrievedAt: { type: Date, required: true, immutable: true },
     contentHash: { type: String, required: true, immutable: true },
     permittedReference: { type: String, required: true, immutable: true },
+    providerUpdatedAt: { type: Date, immutable: true },
+    permittedOriginal: { type: Schema.Types.Mixed, immutable: true, select: false },
   }, { collection: 'source_records' });
   sourceRecord.index({ sourceId: 1, externalRecordId: 1, contentHash: 1 }, { unique: true });
 

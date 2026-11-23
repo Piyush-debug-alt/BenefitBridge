@@ -6,7 +6,10 @@ export const newToken = () => randomBytes(32).toString('base64url');
 export const tokenHash = value => createHash('sha256').update(value).digest('hex');
 const lifetimeMs = 7 * 24 * 60 * 60 * 1000;
 
-export const publicUser = user => ({ id: String(user._id), email: user.email, emailVerified: user.emailVerified });
+export const publicUser = user => ({
+  id: String(user._id), email: user.email, emailVerified: user.emailVerified,
+  ...(user.isAdministrator && { isAdministrator: true }),
+});
 
 export function cookieOptions(config) {
   return { httpOnly: true, sameSite: 'lax', secure: config.secureCookies, path: '/' };
@@ -46,7 +49,7 @@ export function createSessions({ User, Session }, config) {
       }).lean();
       const user = session && await User.findOne({
         _id: session.userId, sessionVersion: session.sessionVersion,
-      }).select('email emailVerified').lean();
+      }).select('email emailVerified isAdministrator').lean();
       if (!user || (!user.emailVerified && !config.allowUnverifiedEmail)) {
         throw new HttpError(401, 'SIGN_IN_REQUIRED', 'Sign in to continue.');
       }

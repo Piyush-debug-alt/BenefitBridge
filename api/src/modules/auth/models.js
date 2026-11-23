@@ -10,6 +10,7 @@ export function createAccountModels(connection) {
   const user = new Schema({
     email: { type: String, required: true, unique: true },
     emailVerified: { type: Boolean, required: true, default: false },
+    isAdministrator: { type: Boolean, default: false },
     passwordHash: { type: String, select: false },
     googleSubject: { type: String, unique: true, sparse: true, immutable: true, select: false },
     sessionVersion: { type: Number, required: true, default: 0 },

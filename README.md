@@ -50,7 +50,7 @@ For an authorized dataset, supply a JSON file with `dataset: "authorized"`, sour
 npm run seed:authorized -- "D:/path/to/authorized-catalogue.json"
 ```
 
-The importer stages an evidence reference and writes one immutable initial version per scheme. It skips identical published records and rejects changes to published records pending a future review workflow. The application reads the published MongoDB catalogue directly.
+This legacy seed command is for an initial dataset that the operator has already verified. It writes immutable initial versions and skips identical records. Use the M5 workflow below for updates to published records and authoritative closures. The application reads the published MongoDB catalogue directly.
 
 ## How guest matching works
 
@@ -113,7 +113,65 @@ Saving a profile requires an explicit consent checkbox and an account request. C
 
 5. Select **Refresh notifications**. Expect **Verified scheme update** for the learning grant and **Potential profile match** for **Demo Campus Materials Award**. Mark either notification read or unread. Rerun the worker or the publication commands to check that the inbox does not gain duplicates.
 
-Run `npm.cmd run notifications:demo` without `--once` to process the demo queue continuously, or `npm.cmd run notifications` for the regular database. Each synthetic fixture publishes once per demo database. A fresh isolated demo MongoDB instance gives you a repeatable first-publication test while preserving an existing demo database and its accounts. The worker waits for the exact version to be published and verified, and holds disputed versions. Profile alerts require an active scheme with a verified rule yielding a potential match and separate notification consent. The synthetic update exercises an immutable revision and preserves the original catalogue version. A real-source reviewer interface, category-level preferences, and email delivery are deferred.
+Run `npm.cmd run notifications:demo` without `--once` to process the demo queue continuously, or `npm.cmd run notifications` for the regular database. Each synthetic fixture publishes once per demo database. A fresh isolated demo MongoDB instance gives you a repeatable first-publication test while preserving an existing demo database and its accounts. The worker waits for the exact version to be published and verified, and holds disputed versions. Profile alerts require an active scheme with a verified rule yielding a potential match and separate notification consent. The synthetic update exercises an immutable revision and preserves the original catalogue version. Category-level preferences and email delivery remain deferred.
+
+## M5 synchronization and review
+
+### Windows demo
+
+1. Start MongoDB, `npm.cmd run demo:api`, and `npm.cmd run demo:web`. Register a demo account. From a repository-root PowerShell terminal with trusted database access, grant that account administrator access in the demo database.
+
+   ```powershell
+   npm.cmd run sync:demo -- grant-admin reviewer@example.test
+   npm.cmd run sync:demo -- snapshot
+   ```
+
+2. Open [Catalogue administration](http://127.0.0.1:5174/admin) with that account. If already signed in, reload to refresh the navigation. Inspect the source, successful job and staged evidence. Approve `m5-study` with a review reason, run `npm.cmd run sync:demo -- once`, then approve `m5-study-mh` and run the worker once more. Open the parent scheme to see the linked Maharashtra variant. A regular account receives HTTP 403 on the administration routes.
+3. To simulate an update, point the worker at the second fictional snapshot. The existing benefit remains visible with an under-review message until approval. The changed benefit and deadline appear after the worker publishes the reviewed version.
+
+   ```powershell
+   $env:DEMO_INGEST_SOURCE_FILE = (Resolve-Path .\api\test\fixtures\synthetic\sync-update.json).Path
+   npm.cmd run sync:demo -- snapshot
+   # Approve the pending parent change in the administration screen.
+   npm.cmd run sync:demo -- once
+   npm.cmd run notifications:demo -- --once
+   ```
+
+4. Optionally bookmark the parent and enable update alerts before step 3. A user with a consented profile containing age 27 and opted-in profile alerts can test the newly published variant in step 2. Use a fresh synthetic database to repeat first-publication alerts.
+
+`npm.cmd run sync:demo -- watch` processes queued jobs and reviews continuously. `snapshot` and `incremental` enqueue a job and perform one worker pass. `once` processes a ready job and pending decisions for the configured source. `revoke-admin` removes the role using the same operator-only command. In regular development use `npm.cmd run sync -- watch` and the same commands without the `:demo` suffix. The administrator UI queues work and records decisions. Ingestion and publication run in the worker process.
+
+### Source configuration
+
+- File mode uses an absolute `INGEST_SOURCE_FILE` (or `DEMO_INGEST_SOURCE_FILE`). The [synthetic snapshot](api/test/fixtures/synthetic/sync-snapshot.json) shows both forms of a record. A plain record can include `sourceUpdatedAt` and otherwise uses the file's `retrievedAt`. The envelope uses `record`, `updatedAt`, optional `authenticity: "uncertain"`, `relationships`, and `closureEvidence`. Use a genuinely reliable per-record source timestamp when the provider supplies one.
+- HTTPS mode uses `INGEST_ENDPOINT`, `INGEST_SOURCE_METADATA` (JSON with `id`, `name`, `baseUrl`, `accessPermissions`, `retentionPolicy`, and `evidenceOrigins`), optional `INGEST_AUTHORIZATION`, and `INGEST_INCREMENTAL=true` when supported. Use only a verified and permitted endpoint. There is currently no live government provider configured or verified. A provider with a different payload needs a mapper implementing the same adapter contract.
+- The contract is `page({ mode, cursor, checkpoint })`. A response supplies `records` in envelope form and `nextCursor` (null on the final page). Snapshot pages carry a stable `snapshotKey` and the final page must explicitly report `complete: true`. Incremental runs return an opaque checkpoint on the final page. A snapshot may supply a checkpoint if the provider defines it in the same checkpoint stream. Configure `INGEST_POLL_MS` and `INGEST_RECONCILE_MS` to adjust the 15-minute polling and 24-hour reconciliation defaults. File-only feeds run snapshots.
+- `reference_only` keeps source URLs and normalized evidence. `permitted_original` also retains valid original envelopes up to 256 KB when the provider permits it. Evidence links, including official closure evidence and application links, must be within configured evidence origins. An absent record creates a review only after a complete snapshot with no invalid rows. Source-confirmed closure requires explicit evidence and reviewer approval. Similar names keep separate source identities.
+
+### MongoDB and recovery
+
+| Collection | Purpose |
+| --- | --- |
+| `sources`, `source_records` | Provider permissions and retained evidence with source ID, record ID, hash and retrieval time |
+| `sync_sources`, `sync_jobs` | Committed checkpoints, per-source worker leases, attempts, results and safe error codes |
+| `source_membership` | Last observed source timestamp and complete-snapshot membership |
+| `review_cases` | Staged normalized data, affected fields, source evidence, decision history and approval errors |
+| `schemes`, `scheme_versions`, `scheme_rule_versions` | Published catalogue, immutable source-backed revisions and independent eligibility for each variant |
+| `change_events` | Durable handoff to the existing notification worker |
+
+A retry starts from the job's original committed checkpoint. Staging uses deterministic source identities and hashes, so the worker can replay a page. The checkpoint moves only after the final page is processed. Reviews from an interrupted run require a completed observation before approval. Publication creates the immutable version and any applicable change event before switching the live scheme pointer. A retry uses the original decision and checks that the live version and source evidence still agree. This permits standalone MongoDB and keeps partial revisions out of search. Users continue to see the last published information during a review or source interruption.
+
+The live catalogue groups a state variant under its verified central parent and supports explicit supplement and related links. Each variant keeps its own rules. A reviewer must resolve an evidence conflict before publication. New, unconfirmed records stay outside the public catalogue until approval. An approved change triggers a bookmark alert only when tracked benefit, eligibility, application or lifecycle fields change. Newly published schemes still require a verified rule and an opted-in saved profile to generate a match alert.
+
+### Scale checks
+
+```powershell
+npm.cmd run benchmark -- 10000
+npm.cmd run benchmark -- 50000
+# The same generator accepts up to 100000.
+```
+
+The runner creates a temporary standalone MongoDB process with a dedicated `benefitbridge_loadtest` database. Synthetic benchmark approval is enabled only in that database. The workload uses the same ranked list and count queries as the catalogue. It reports search percentiles, failures, index plans, ingestion and incremental throughput, database size, and hardware. See the [measured benchmark report](docs/M5_BENCHMARK.md).
 
 ## Checks
 

@@ -27,6 +27,13 @@ export function createCatalogueModels(connection) {
     currentVersionId: { type: Schema.Types.ObjectId, ref: 'SchemeVersion' },
     sourceRefs: [sourceReference],
     applicationUrl: String,
+    applicationDeadline: String,
+    relationships: { type: [{
+      _id: false, kind: String, targetId: Schema.Types.ObjectId, evidenceUrl: String,
+    }], default: undefined },
+    sourceUpdatedAt: Date,
+    reviewCaseId: Schema.Types.ObjectId,
+    disputedFields: { type: [String], default: undefined },
     benefits: [String],
     eligibilityText: String,
     requiredDocuments: [String],
@@ -42,6 +49,7 @@ export function createCatalogueModels(connection) {
   scheme.index({ dataset: 1, publicationStatus: 1, stateCodes: 1 });
   scheme.index({ dataset: 1, publicationStatus: 1, governmentLevel: 1, nationwide: 1 });
   scheme.index({ dataset: 1, publicationStatus: 1, canonicalName: 1, _id: 1 });
+  scheme.index({ dataset: 1, 'relationships.targetId': 1, publicationStatus: 1 });
 
   const version = new Schema({
     schemeId: { type: Schema.Types.ObjectId, ref: 'Scheme', required: true, immutable: true },
@@ -54,6 +62,7 @@ export function createCatalogueModels(connection) {
     reviewDecisionId: { type: Schema.Types.ObjectId, immutable: true },
   }, { collection: 'scheme_versions' });
   version.index({ schemeId: 1, versionNo: 1 }, { unique: true });
+  version.index({ reviewDecisionId: 1 }, { unique: true, sparse: true });
 
   return {
     Scheme: connection.model('Scheme', scheme),

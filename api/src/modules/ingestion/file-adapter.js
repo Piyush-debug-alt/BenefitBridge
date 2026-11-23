@@ -5,13 +5,13 @@ import { eligibilitySchema } from '../matching/criteria.js';
 
 const shortText = z.string().trim().min(1).max(100);
 const paragraph = z.string().trim().min(1).max(4000);
-const opaqueId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/);
-const webUrl = z.url({ protocol: /^https?$/, hostname: z.regexes.domain }).max(2048)
+export const opaqueId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/);
+export const webUrl = z.url({ protocol: /^https?$/, hostname: z.regexes.domain }).max(2048)
   .refine(value => !new URL(value).username && !new URL(value).password, 'Link must omit credentials.');
-const timestamp = z.iso.datetime({ offset: true });
+export const timestamp = z.iso.datetime({ offset: true });
 const sourceReference = z.strictObject({ label: shortText, url: webUrl });
 
-const record = z.strictObject({
+export const record = z.strictObject({
   externalRecordId: opaqueId,
   canonicalName: z.string().trim().min(1).max(180),
   description: paragraph,
@@ -27,6 +27,7 @@ const record = z.strictObject({
   verificationStatus: z.enum(verificationStatuses),
   sourceRefs: z.array(sourceReference).min(1).max(15),
   applicationUrl: webUrl.optional(),
+  applicationDeadline: z.iso.date().optional(),
   benefits: z.array(paragraph).max(20).default([]),
   eligibilityText: paragraph.optional(),
   eligibility: eligibilitySchema.optional(),

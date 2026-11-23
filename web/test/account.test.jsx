@@ -190,3 +190,28 @@ it('shows the in-app inbox, saves preferences, and toggles read status', async (
   await user.click(screen.getByRole('button', { name: 'Mark unread' }));
   await screen.findByText('1 unread');
 });
+
+it('lets an administrator inspect the source and queue a review decision', async () => {
+  const review = { _id: 'record-id', externalRecordId: 'source-record', kind: 'candidate',
+    status: 'pending', changedFields: ['benefits'], normalization: { record: {} } };
+  const api = vi.fn(async (url, options) => {
+    if (url.endsWith('/me')) return response({ user: { ...signedInUser, isAdministrator: true } });
+    if (url.endsWith('/admin/sources')) return response({ sources: [] });
+    if (url.endsWith('/admin/sync-jobs')) return response({ items: [] });
+    if (url.includes('/admin/reviews?')) return response({ items: [review] });
+    if (url.endsWith('/record-id/decision')) {
+      expect(options.method).toBe('POST');
+      expect(JSON.parse(options.body)).toEqual({ action: 'approve', reason: 'Checked permitted source' });
+      return response({ status: 'approved' });
+    }
+    return response({ review, provenance: { permittedReference: 'https://source.example.invalid/record' } });
+  });
+  vi.stubGlobal('fetch', api);
+  const user = renderApp('/admin');
+  await user.click(await screen.findByRole('button', { name: /source-record/ }));
+  await user.click(await screen.findByText('Evidence and previous version'));
+  expect(screen.getByText(/source.example.invalid/)).toBeTruthy();
+  await user.type(screen.getByLabelText('Evidence or reason'), 'Checked permitted source');
+  await user.click(screen.getByRole('button', { name: 'Save decision' }));
+  await screen.findByText(/Decision saved/);
+});

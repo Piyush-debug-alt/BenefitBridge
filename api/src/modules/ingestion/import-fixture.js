@@ -17,6 +17,9 @@ export async function attachEligibility(SchemeRuleVersion, schemeId, schemeVersi
 
 export async function importFixture(models, dataset, input) {
   const { source, records, retrievedAt } = parseFixture(input, dataset);
+  if (dataset === 'authorized' && records.some(item => item.lifecycleStatus === 'closed')) {
+    throw new Error('Use the reviewed synchronization workflow to publish authoritative closures.');
+  }
   const { Source, SourceRecord, Scheme, SchemeVersion, SchemeRuleVersion, ChangeEvent } = models;
   const { id: sourceId, ...sourceFields } = source;
   await Source.updateOne({ _id: sourceId, dataset }, { $setOnInsert: sourceFields }, {

@@ -4,7 +4,7 @@ const mongoUri = z.string().regex(/^mongodb(?:\+srv)?:\/\/\S+$/);
 const localMongoUri = z.string().regex(/^mongodb:\/\/127\.0\.0\.1:\d{1,5}\/?$/);
 const port = z.coerce.number().int().min(1).max(65535);
 const databaseName = z.string().regex(/^[a-zA-Z0-9_-]{1,63}$/);
-const reservedDatabase = /^(benefitbridge_(?:demo|test)(?:_|$)|admin$|config$|local$)/i;
+const reservedDatabase = /^(benefitbridge_(?:demo|test|loadtest)(?:_|$)|admin$|config$|local$)/i;
 
 const developmentEnv = z.object({
   MONGODB_URI: mongoUri.default('mongodb://127.0.0.1:27017'),
@@ -25,7 +25,11 @@ function read(schema, env) {
   return result.data;
 }
 
-export function readConfig(env = process.env, { demo = false } = {}) {
+export function readConfig(env = process.env, { demo = false, loadtest = false } = {}) {
+  if (loadtest) {
+    const { LOADTEST_MONGODB_URI } = read(z.object({ LOADTEST_MONGODB_URI: localMongoUri }), env);
+    return { uri: LOADTEST_MONGODB_URI, database: 'benefitbridge_loadtest', dataset: 'synthetic' };
+  }
   if (demo) {
     const values = read(demoEnv, env);
     return {
