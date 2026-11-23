@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import argon2 from 'argon2';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -222,7 +223,13 @@ describe('email verification and recovery', () => {
     const reset = new URL(mailer.send.mock.lastCall[2]);
     const data = { token: reset.hash.slice(1), password: 'updated-test-passphrase' };
     await post('/auth/password/reset').send(data).expect(200);
-    await post('/auth/password/reset').send(data).expect(400);
+    const hash = vi.spyOn(argon2, 'hash');
+    try {
+      await post('/auth/password/reset').send(data).expect(400);
+      expect(hash).not.toHaveBeenCalled();
+    } finally {
+      hash.mockRestore();
+    }
     await api.get('/api/v1/me').set('Cookie', cookie).expect(401);
     await post('/auth/login').send({ email, password: data.password }).expect(200);
   });

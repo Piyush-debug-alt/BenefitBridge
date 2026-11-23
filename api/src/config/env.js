@@ -3,6 +3,7 @@ import { z } from 'zod';
 const mongoUri = z.string().regex(/^mongodb(?:\+srv)?:\/\/\S+$/);
 const localMongoUri = z.string().regex(/^mongodb:\/\/127\.0\.0\.1:\d{1,5}\/?$/);
 const port = z.coerce.number().int().min(1).max(65535);
+const proxySetting = z.enum(['true', 'false']).default('false').transform(value => value === 'true');
 const databaseName = z.string().regex(/^[a-zA-Z0-9_-]{1,63}$/);
 const reservedDatabase = /^(benefitbridge_(?:demo|test|loadtest)(?:_|$)|admin$|config$|local$)/i;
 
@@ -10,11 +11,13 @@ const developmentEnv = z.object({
   MONGODB_URI: mongoUri.default('mongodb://127.0.0.1:27017'),
   MONGODB_DATABASE: databaseName.default('benefitbridge_dev'),
   PORT: port.default(4000),
+  TRUST_LOOPBACK_PROXY: proxySetting,
 });
 
 const demoEnv = z.object({
   DEMO_MONGODB_URI: localMongoUri.default('mongodb://127.0.0.1:27017'),
   DEMO_PORT: port.default(4001),
+  DEMO_TRUST_LOOPBACK_PROXY: proxySetting,
 });
 
 function read(schema, env) {
@@ -38,6 +41,7 @@ export function readConfig(env = process.env, { demo = false, loadtest = false }
       dataset: 'synthetic',
       port: values.DEMO_PORT,
       host: '127.0.0.1',
+      trustLoopbackProxy: values.DEMO_TRUST_LOOPBACK_PROXY,
     };
   }
 
@@ -51,5 +55,6 @@ export function readConfig(env = process.env, { demo = false, loadtest = false }
     dataset: 'authorized',
     port: values.PORT,
     host: '127.0.0.1',
+    trustLoopbackProxy: values.TRUST_LOOPBACK_PROXY,
   };
 }

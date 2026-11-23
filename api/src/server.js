@@ -11,6 +11,7 @@ async function start() {
     models,
     dataset: config.dataset,
     auth,
+    trustLoopbackProxy: config.trustLoopbackProxy,
     isReady: () => connection.readyState === 1,
   });
   const server = app.listen(config.port, config.host, () => {

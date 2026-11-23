@@ -220,6 +220,8 @@ npm.cmd run benchmark -- 50000
 
 The runner creates a temporary standalone MongoDB process with a dedicated `benefitbridge_loadtest` database. Synthetic benchmark approval is enabled only in that database. The workload uses the same ranked list and count queries as the catalogue. It reports search percentiles, failures, index plans, ingestion and incremental throughput, database size, and hardware. See the [measured benchmark report](docs/M5_BENCHMARK.md).
 
+Run `node scripts/benchmark-http.mjs 50000` for the mixed HTTP catalogue and personalization workload. The [release-readiness report](docs/RELEASE_READINESS.md) records the baseline, revised plans, security findings, and conditions for a public demo.
+
 ## M6 eligibility extraction
 
 ### Windows demo

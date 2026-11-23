@@ -39,11 +39,21 @@ export function searchSchemes(Scheme, published, filters) {
 export function catalogueRouter(Scheme, dataset, SyncSource) {
   const router = Router();
   const published = { dataset, publicationStatus: 'published' };
+  const countsInProgress = new Map();
+
+  function sharedCount(count) {
+    const key = JSON.stringify(count.getFilter());
+    if (!countsInProgress.has(key)) {
+      countsInProgress.set(key, count.exec().finally(() => countsInProgress.delete(key)));
+    }
+    return countsInProgress.get(key);
+  }
 
   router.get('/schemes', async (req, res) => {
     const filters = validate(listQuery, req.query);
     const { page, limit } = filters;
-    const [items, total] = await Promise.all(searchSchemes(Scheme, published, filters));
+    const [list, count] = searchSchemes(Scheme, published, filters);
+    const [items, total] = await Promise.all([list, sharedCount(count)]);
 
     res.json({ dataset, items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   });

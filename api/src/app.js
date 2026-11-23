@@ -8,9 +8,10 @@ import { readAuthConfig } from './modules/auth/config.js';
 import { accountRouter } from './modules/auth/routes.js';
 import { administrationRouter } from './modules/ingestion/admin-routes.js';
 
-export function createApp({ models, dataset, isReady, auth = readAuthConfig({}, dataset), services }) {
+export function createApp({ models, dataset, isReady, auth = readAuthConfig({}, dataset), services, trustLoopbackProxy = false }) {
   const app = express();
   app.disable('x-powered-by');
+  if (trustLoopbackProxy) app.set('trust proxy', 'loopback');
   app.use(requestId, helmet());
   app.use('/api/v1', rateLimit({
     windowMs: 60_000,

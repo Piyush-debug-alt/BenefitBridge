@@ -45,7 +45,8 @@ export function createCatalogueModels(connection) {
   scheme.index({ canonicalName: 'text', description: 'text', keywords: 'text', goalTags: 'text' }, {
     weights: { canonicalName: 8, keywords: 4, goalTags: 4, description: 1 },
   });
-  scheme.index({ dataset: 1, publicationStatus: 1, categoryIds: 1 });
+  scheme.index({ dataset: 1, publicationStatus: 1, lifecycleStatus: 1 });
+  scheme.index({ dataset: 1, publicationStatus: 1, categoryIds: 1, canonicalName: 1, _id: 1 });
   scheme.index({ dataset: 1, publicationStatus: 1, stateCodes: 1 });
   scheme.index({ dataset: 1, publicationStatus: 1, governmentLevel: 1, nationwide: 1 });
   scheme.index({ dataset: 1, publicationStatus: 1, canonicalName: 1, _id: 1 });

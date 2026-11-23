@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server-core';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
@@ -13,6 +13,17 @@ const cachePath = fileURLToPath(new URL('../../.local/mongodb/', import.meta.url
 const fixture = await readFixture(fixturePath, 'synthetic');
 
 describe('configuration and fixture validation', () => {
+  it('requires explicit opt-in to trust a local reverse proxy in each environment', () => {
+    expect(readConfig({}).trustLoopbackProxy).toBe(false);
+    expect(readConfig({ TRUST_LOOPBACK_PROXY: 'true' }).trustLoopbackProxy).toBe(true);
+    expect(readConfig({ TRUST_LOOPBACK_PROXY: 'true' }, { demo: true }).trustLoopbackProxy).toBe(false);
+    expect(() => readConfig({ TRUST_LOOPBACK_PROXY: 'yes' })).toThrow(/TRUST_LOOPBACK_PROXY/);
+    const app = createApp({ models: {}, dataset: 'synthetic', isReady: () => true, trustLoopbackProxy: true });
+    const isTrusted = app.get('trust proxy fn');
+    expect(isTrusted('127.0.0.1', 0)).toBe(true);
+    expect(isTrusted('192.0.2.1', 0)).toBe(false);
+  });
+
   it('reserves the demo database and rejects a non-local demo URI', () => {
     expect(() => readConfig({ MONGODB_DATABASE: 'BenefitBridge_Demo' })).toThrow(/dedicated/);
     expect(() => readConfig({ DEMO_MONGODB_URI: 'mongodb://db.example.net:27017' }, { demo: true })).toThrow(/Invalid/);
@@ -100,6 +111,36 @@ describe('catalogue backed by MongoDB', () => {
     expect(names(repeat)).toEqual(names(next));
     const facets = await api.get('/api/v1/facets').expect(200);
     expect(facets.body).toMatchObject({ dataset: 'synthetic', states: ['KA', 'MH', 'TN'] });
+  });
+
+  it('shares only an in-flight count across concurrent pages of the same filtered catalogue', async () => {
+    const { Scheme } = demo.models;
+    const original = Scheme.countDocuments.bind(Scheme);
+    const begin = Promise.withResolvers();
+    const executions = vi.fn();
+    const counts = vi.spyOn(Scheme, 'countDocuments').mockImplementation(filter => {
+      const count = original(filter);
+      const exec = count.exec.bind(count);
+      count.exec = async () => { executions(); await begin.promise; return exec(); };
+      return count;
+    });
+    try {
+      const requests = Promise.all([1, 2].map(page => api.get('/api/v1/schemes')
+        .query({ page, limit: 1, state: 'MH' }).expect(200).then(response => response)));
+      try {
+        await vi.waitFor(() => expect(counts).toHaveBeenCalledTimes(2));
+      } finally {
+        begin.resolve();
+      }
+      const [first, second] = await requests;
+      expect(executions).toHaveBeenCalledTimes(1);
+      expect(first.body.pagination.total).toBe(second.body.pagination.total);
+      expect(first.body.items[0]._id).not.toBe(second.body.items[0]._id);
+      await api.get('/api/v1/schemes').query({ state: 'MH' }).expect(200);
+      expect(executions).toHaveBeenCalledTimes(2);
+    } finally {
+      counts.mockRestore();
+    }
   });
 
   it('shows provenance in detail and only lists closed schemes through the closed filter', async () => {

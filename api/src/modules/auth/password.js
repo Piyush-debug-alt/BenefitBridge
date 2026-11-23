@@ -92,9 +92,12 @@ export function mountPasswordRoutes(router, { User }, config, sessions, origin, 
 
   router.post('/auth/password/reset', emailLimit, origin, jsonBody, async (req, res) => {
     const { token, password } = safeInput(z.strictObject({ token: code, password: newPassword }), req.body);
+    const recoveryHash = tokenHash(token);
+    const owner = await User.exists({ 'recovery.hash': recoveryHash, 'recovery.expiresAt': { $gt: new Date() } });
+    if (!owner) throw new HttpError(400, 'INVALID_LINK', 'This link is invalid or expired.');
     const passwordHash = await hashPassword(password);
     const user = await User.findOneAndUpdate({
-      'recovery.hash': tokenHash(token), 'recovery.expiresAt': { $gt: new Date() },
+      _id: owner._id, 'recovery.hash': recoveryHash, 'recovery.expiresAt': { $gt: new Date() },
     }, { $set: { passwordHash }, $unset: { recovery: 1 }, $inc: { sessionVersion: 1 } });
     if (!user) throw new HttpError(400, 'INVALID_LINK', 'This link is invalid or expired.');
     res.json({ message: 'Password updated. Sign in with your new password.' });
