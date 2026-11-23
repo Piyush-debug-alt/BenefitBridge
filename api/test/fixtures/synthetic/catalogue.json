@@ -1,0 +1,507 @@
+{
+  "dataset": "synthetic",
+  "source": {
+    "id": "benefitbridge-demo",
+    "name": "BenefitBridge Synthetic Fixtures",
+    "baseUrl": "https://benefitbridge.example.invalid",
+    "accessPermissions": "Authored solely for local synthetic demonstration and automated tests.",
+    "retentionPolicy": "reference_only"
+  },
+  "retrievedAt": "2026-11-23T00:00:00Z",
+  "records": [
+    {
+      "externalRecordId": "learning-grant",
+      "canonicalName": "Learning Materials Grant",
+      "description": "A fictional catalogue example for learners looking for help with books and study materials.",
+      "categoryIds": [
+        "Education"
+      ],
+      "benefitTypes": [
+        "Grant"
+      ],
+      "governmentLevel": "central",
+      "nationwide": true,
+      "stateCodes": [],
+      "issuer": "Demo Education Office",
+      "keywords": [
+        "school",
+        "study",
+        "books"
+      ],
+      "goalTags": [
+        "learning"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/learning-grant"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit.",
+      "requiredDocuments": [
+        "Example supporting document"
+      ]
+    },
+    {
+      "externalRecordId": "student-transport",
+      "canonicalName": "Student Travel Support",
+      "description": "A sample student travel benefit used to test regional filtering and written eligibility.",
+      "categoryIds": [
+        "Transport"
+      ],
+      "benefitTypes": [
+        "Subsidy"
+      ],
+      "governmentLevel": "state",
+      "nationwide": false,
+      "stateCodes": [
+        "MH"
+      ],
+      "issuer": "Demo Regional Office",
+      "keywords": [
+        "education",
+        "student",
+        "commute"
+      ],
+      "goalTags": [
+        "travel",
+        "learning"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/student-transport"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit."
+    },
+    {
+      "externalRecordId": "garden-kits",
+      "canonicalName": "Community Garden Starter Kit",
+      "description": "A fictional fixture for people exploring tools and supplies for a shared garden.",
+      "categoryIds": [
+        "Agriculture"
+      ],
+      "benefitTypes": [
+        "Equipment"
+      ],
+      "governmentLevel": "state",
+      "nationwide": false,
+      "stateCodes": [
+        "KA"
+      ],
+      "issuer": "Demo Regional Office",
+      "keywords": [
+        "farming",
+        "seeds"
+      ],
+      "goalTags": [
+        "gardening"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/garden-kits"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit."
+    },
+    {
+      "externalRecordId": "home-energy",
+      "canonicalName": "Home Energy Upgrade Rebate",
+      "description": "A sample energy benefit for exploring rooftop solar and home electricity improvements.",
+      "categoryIds": [
+        "Energy"
+      ],
+      "benefitTypes": [
+        "Rebate"
+      ],
+      "governmentLevel": "central",
+      "nationwide": true,
+      "stateCodes": [],
+      "issuer": "Demo Energy Office",
+      "keywords": [
+        "solar",
+        "renewable",
+        "electricity"
+      ],
+      "goalTags": [
+        "solar"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/home-energy"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit.",
+      "requiredDocuments": [
+        "Example supporting document"
+      ]
+    },
+    {
+      "externalRecordId": "farm-water",
+      "canonicalName": "Water-Saving Farm Equipment",
+      "description": "A fictional listing for comparing irrigation tools and water conservation benefits.",
+      "categoryIds": [
+        "Agriculture"
+      ],
+      "benefitTypes": [
+        "Equipment"
+      ],
+      "governmentLevel": "state",
+      "nationwide": false,
+      "stateCodes": [
+        "MH"
+      ],
+      "issuer": "Demo Regional Office",
+      "keywords": [
+        "irrigation",
+        "farming",
+        "water"
+      ],
+      "goalTags": [
+        "farming"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "stale",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/farm-water"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit."
+    },
+    {
+      "externalRecordId": "training-voucher",
+      "canonicalName": "Workplace Skills Voucher",
+      "description": "A sample benefit for people exploring short training courses and workplace skills.",
+      "categoryIds": [
+        "Employment"
+      ],
+      "benefitTypes": [
+        "Voucher"
+      ],
+      "governmentLevel": "central",
+      "nationwide": true,
+      "stateCodes": [],
+      "issuer": "Demo Skills Office",
+      "keywords": [
+        "course",
+        "training",
+        "work"
+      ],
+      "goalTags": [
+        "upskilling"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/training-voucher"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit."
+    },
+    {
+      "externalRecordId": "rural-connectivity",
+      "canonicalName": "Rural Connectivity Trial",
+      "description": "A regional synthetic pilot that illustrates a central scheme with a restricted service area.",
+      "categoryIds": [
+        "Technology"
+      ],
+      "benefitTypes": [
+        "Subsidy"
+      ],
+      "governmentLevel": "central",
+      "nationwide": false,
+      "stateCodes": [
+        "KA"
+      ],
+      "issuer": "Demo Skills Office",
+      "keywords": [
+        "internet",
+        "broadband"
+      ],
+      "goalTags": [
+        "connectivity"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/rural-connectivity"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit.",
+      "requiredDocuments": [
+        "Example supporting document"
+      ]
+    },
+    {
+      "externalRecordId": "mobility-aid",
+      "canonicalName": "Accessible Mobility Equipment",
+      "description": "A fictional record for discovering mobility equipment and access support.",
+      "categoryIds": [
+        "Accessibility"
+      ],
+      "benefitTypes": [
+        "Equipment"
+      ],
+      "governmentLevel": "central",
+      "nationwide": true,
+      "stateCodes": [],
+      "issuer": "Demo Access Office",
+      "keywords": [
+        "mobility",
+        "access"
+      ],
+      "goalTags": [
+        "accessibility"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/mobility-aid"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit."
+    },
+    {
+      "externalRecordId": "market-stall",
+      "canonicalName": "Market Stall Setup Support",
+      "description": "A synthetic benefit to explore supplies and setup help for a small local market stall.",
+      "categoryIds": [
+        "Business"
+      ],
+      "benefitTypes": [
+        "Grant"
+      ],
+      "governmentLevel": "state",
+      "nationwide": false,
+      "stateCodes": [
+        "TN"
+      ],
+      "issuer": "Demo Regional Office",
+      "keywords": [
+        "enterprise",
+        "market",
+        "small business"
+      ],
+      "goalTags": [
+        "business"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/market-stall"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit."
+    },
+    {
+      "externalRecordId": "rainwater-kit",
+      "canonicalName": "Household Rainwater Kit",
+      "description": "A sample record about collecting rainwater for household or garden use.",
+      "categoryIds": [
+        "Environment"
+      ],
+      "benefitTypes": [
+        "Equipment"
+      ],
+      "governmentLevel": "state",
+      "nationwide": false,
+      "stateCodes": [
+        "KA"
+      ],
+      "issuer": "Demo Regional Office",
+      "keywords": [
+        "rain",
+        "garden",
+        "water"
+      ],
+      "goalTags": [
+        "gardening"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/rainwater-kit"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit.",
+      "requiredDocuments": [
+        "Example supporting document"
+      ]
+    },
+    {
+      "externalRecordId": "library-pass",
+      "canonicalName": "Community Library Pass",
+      "description": "A fictional example covering library access and shared learning spaces.",
+      "categoryIds": [
+        "Education"
+      ],
+      "benefitTypes": [
+        "Voucher"
+      ],
+      "governmentLevel": "central",
+      "nationwide": true,
+      "stateCodes": [],
+      "issuer": "Demo Education Office",
+      "keywords": [
+        "reading",
+        "books",
+        "study"
+      ],
+      "goalTags": [
+        "learning"
+      ],
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "lastVerifiedAt": "2026-11-20T00:00:00Z",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/library-pass"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit."
+    },
+    {
+      "externalRecordId": "lighting-trial",
+      "canonicalName": "Efficient Lighting Trial",
+      "description": "An archived fictional lighting trial illustrating the explicit closed filter.",
+      "categoryIds": [
+        "Energy"
+      ],
+      "benefitTypes": [
+        "Rebate"
+      ],
+      "governmentLevel": "state",
+      "nationwide": false,
+      "stateCodes": [
+        "MH"
+      ],
+      "issuer": "Demo Regional Office",
+      "keywords": [
+        "lighting",
+        "electricity"
+      ],
+      "goalTags": [
+        "energy"
+      ],
+      "lifecycleStatus": "closed",
+      "verificationStatus": "unverified",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/lighting-trial"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit."
+    },
+    {
+      "externalRecordId": "repair-resources",
+      "canonicalName": "Community Repair Resources",
+      "description": "A fictional example about sharing household repair tools. Availability is recorded as unknown.",
+      "categoryIds": [
+        "Environment"
+      ],
+      "benefitTypes": [
+        "Grant"
+      ],
+      "governmentLevel": "state",
+      "nationwide": false,
+      "stateCodes": [
+        "TN"
+      ],
+      "issuer": "Demo Regional Office",
+      "keywords": [
+        "repair",
+        "tools",
+        "recycling"
+      ],
+      "goalTags": [
+        "repair"
+      ],
+      "lifecycleStatus": "unknown",
+      "verificationStatus": "unverified",
+      "sourceRefs": [
+        {
+          "label": "Fictional source reference",
+          "url": "https://benefitbridge.example.invalid/fixtures/repair-resources"
+        }
+      ],
+      "benefits": [
+        "Example benefit information for exercising the detail page."
+      ],
+      "eligibilityText": "Illustrative eligibility text for this synthetic record. It does not describe a real benefit.",
+      "requiredDocuments": [
+        "Example supporting document"
+      ]
+    }
+  ]
+}

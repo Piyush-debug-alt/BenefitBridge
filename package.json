@@ -1,0 +1,16 @@
+{
+  "name": "benefitbridge",
+  "private": true,
+  "workspaces": ["api", "web"],
+  "engines": { "node": "^22.12.0 || >=24" },
+  "scripts": {
+    "dev:api": "npm run dev -w api",
+    "dev:web": "npm run dev -w web",
+    "demo:api": "npm run demo -w api",
+    "demo:web": "npm run demo -w web",
+    "seed:demo": "npm run seed:demo -w api",
+    "seed:authorized": "npm run seed:authorized -w api --",
+    "test": "npm test --workspaces",
+    "build": "npm run build -w web"
+  }
+}
