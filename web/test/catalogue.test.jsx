@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
 import { App } from '../src/app/App.jsx';
+import pilot from '../../data/authorized/pib-pilot.json';
 
 const item = {
   _id: '000000000000000000000001', canonicalName: 'Test result', description: 'Test description',
@@ -71,6 +72,27 @@ it('shows an accessible not-found state for an unavailable scheme', async () => 
   renderApp('/schemes/' + item._id);
   expect(await screen.findByRole('heading', { name: 'Scheme unavailable' })).toBeTruthy();
   expect(screen.getByRole('alert').textContent).toContain('could not be found');
+});
+
+it.each([
+  ['pm-surya-ghar', 'https://www.pmsuryaghar.gov.in/'],
+  ['pm-vishwakarma', null],
+])('renders attributed details and the verified application route for %s', async (id, applicationUrl) => {
+  const { record } = pilot.records.find(entry => entry.record.externalRecordId === id);
+  vi.stubGlobal('fetch', vi.fn(async url => url.endsWith(item._id)
+    ? json({ dataset: 'authorized', item: { ...item, ...record } }) : json({}, 401)));
+  renderApp('/schemes/' + item._id);
+
+  await screen.findByRole('heading', { name: record.canonicalName, level: 1 });
+  const sources = within(screen.getByRole('complementary', { name: 'Scheme and sources' }));
+  for (const { label, url } of record.sourceRefs) expect(sources.getByRole('link', { name: label }).href).toBe(url);
+  const application = sources.queryByRole('link', { name: 'Official application portal' });
+  expect(application?.href ?? null).toBe(applicationUrl);
+  expect(sources.queryByText('Application deadline')).toBeNull();
+  if (!applicationUrl) {
+    expect(screen.getByText('Availability unknown')).toBeTruthy();
+    expect(screen.getByText(/Check with a CSC for current intake/)).toBeTruthy();
+  }
 });
 
 function enableDialogInDom() {

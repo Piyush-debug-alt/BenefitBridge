@@ -8,7 +8,8 @@ const relation = z.strictObject({
   sourceId: opaqueId, externalRecordId: opaqueId, evidenceUrl: webUrl,
 });
 const envelope = z.strictObject({
-  record, updatedAt: timestamp, closureEvidence: webUrl.optional(),
+  record, updatedAt: timestamp, retrievedAt: timestamp.optional(), closureEvidence: webUrl.optional(),
+  fieldProvenance: z.partialRecord(record.keyof(), z.array(webUrl).min(1).max(15)).optional(),
   relationships: z.array(relation).max(20).default([]),
   authenticity: z.enum(['supported', 'uncertain']).default('supported'),
 });
@@ -33,8 +34,9 @@ function normalize(input, source, dataset) {
   const result = envelope.safeParse(input);
   if (!result.success) return { errorCode: 'INVALID_RECORD' };
   const candidate = result.data;
-  const { record, relationships, closureEvidence, updatedAt } = candidate;
-  const publishedRefs = record.sourceRefs.map(ref => ref.url);
+  const { record, relationships, closureEvidence, updatedAt, retrievedAt, fieldProvenance } = candidate;
+  const refsByUrl = new Map(record.sourceRefs.map(ref => [ref.url, ref]));
+  const publishedRefs = [...refsByUrl.keys()];
   const evidence = [...publishedRefs, ...relationships.map(item => item.evidenceUrl), closureEvidence, record.applicationUrl].filter(Boolean);
   const targetCount = relationships.filter(item => item.kind === 'variant_of').length;
   const distinctRelationships = new Set(relationships.map(item => [item.kind, item.sourceId, item.externalRecordId].join('/')));
@@ -46,7 +48,16 @@ function normalize(input, source, dataset) {
       (targetCount && record.governmentLevel !== 'state')) return { errorCode: 'UNSUPPORTED_PROVENANCE' };
   if (closureEvidence && !publishedRefs.includes(closureEvidence)) return { errorCode: 'UNSUPPORTED_CLOSURE_EVIDENCE' };
   if (record.lifecycleStatus === 'closed' && !closureEvidence) return { errorCode: 'MISSING_CLOSURE_EVIDENCE' };
+  if (fieldProvenance) {
+    const fields = Object.keys(fieldProvenance);
+    if (!fields.length || fields.some(field => !Object.hasOwn(record, field) ||
+      fieldProvenance[field].some(url => !refsByUrl.has(url)))) return { errorCode: 'UNSUPPORTED_PROVENANCE' };
+    candidate.fieldProvenance = Object.fromEntries(fields.sort().map(field => [
+      field, fieldProvenance[field].map(url => refsByUrl.get(url)),
+    ]));
+  }
   if (record.lastVerifiedAt && Date.parse(record.lastVerifiedAt) > Date.now() + 60_000 ||
+      retrievedAt && Date.parse(retrievedAt) > Date.now() + 60_000 ||
       Date.parse(updatedAt) > Date.now() + 60_000) return { errorCode: 'FUTURE_SOURCE_TIMESTAMP' };
   return { candidate };
 }
@@ -75,8 +86,8 @@ export async function stageRecord(models, job, source, raw) {
     return { kind: 'invalid' };
   }
 
-  const { updatedAt, record, authenticity, closureEvidence, relationships } = candidate;
-  const fingerprint = digest([record, authenticity, closureEvidence, relationships]);
+  const { updatedAt, retrievedAt, record, authenticity, closureEvidence, relationships, fieldProvenance } = candidate;
+  const fingerprint = digest([record, authenticity, closureEvidence, relationships, ...(fieldProvenance ? [fieldProvenance] : [])]);
   const providerTime = new Date(updatedAt);
   const seen = { lastSeenAt: new Date(), ...(job.mode === 'snapshot' && { seenRun: job._id }), confirmed: true, missing: false };
   const olderThan = member?.updatedAt ?? scheme?.sourceUpdatedAt ?? scheme?.lastVerifiedAt;
@@ -85,7 +96,8 @@ export async function stageRecord(models, job, source, raw) {
     return { kind: 'outdated' };
   }
   const sameTimeConflict = member?.updatedAt?.getTime() === providerTime.getTime() && member.fingerprint !== fingerprint;
-  const previous = scheme?.currentVersionId && await SchemeVersion.findById(scheme.currentVersionId).select('fields').lean();
+  const previous = scheme?.currentVersionId && await SchemeVersion.findById(scheme.currentVersionId)
+    .select('fields fieldProvenance').lean();
   const previousRule = scheme?.currentVersionId && await SchemeRuleVersion.findOne({
     schemeId: scheme._id, schemeVersionId: scheme.currentVersionId,
   }).select('rule extractionProvenance').lean();
@@ -95,6 +107,9 @@ export async function stageRecord(models, job, source, raw) {
     ...fields, ...(relationships.length && { relationships }), ...(observedRule && { eligibility: observedRule }),
     ...(closureEvidence && { closureEvidence }),
   });
+  if (fieldProvenance && digest(fieldProvenance) !== digest(previous?.fieldProvenance) && !changed.includes('sourceRefs')) {
+    changed.push('sourceRefs');
+  }
   const needsReview = changed.length || !scheme?.currentVersionId || sameTimeConflict || authenticity === 'uncertain' ||
     record.verificationStatus !== 'verified';
   let review;
@@ -103,7 +118,8 @@ export async function stageRecord(models, job, source, raw) {
     const permitOriginal = source.retentionPolicy === 'permitted_original';
     const evidence = await SourceRecord.findOneAndUpdate({ ...identity, contentHash }, {
       $setOnInsert: {
-        retrievedAt: new Date(), providerUpdatedAt: providerTime, permittedReference: record.sourceRefs[0].url,
+        retrievedAt: retrievedAt ? new Date(retrievedAt) : new Date(),
+        providerUpdatedAt: providerTime, permittedReference: record.sourceRefs[0].url,
         ...(permitOriginal && Buffer.byteLength(JSON.stringify(raw)) <= 256_000 && { permittedOriginal: raw }),
       },
     }, { upsert: true, new: true }).select('_id').lean();

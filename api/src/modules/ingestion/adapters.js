@@ -56,10 +56,10 @@ export async function fileAdapter(path, dataset) {
   if (input.dataset !== dataset || !Array.isArray(input.records) || input.records.length > 100_000 ||
       !timestamp.safeParse(input.retrievedAt).success) throw new FeedError('INVALID_FILE');
   const records = input.records.map(value => {
-    if (Object.hasOwn(value ?? {}, 'record')) return value;
+    if (Object.hasOwn(value ?? {}, 'record')) return { ...value, retrievedAt: input.retrievedAt };
     if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
     const { sourceUpdatedAt, ...record } = value;
-    return { record, updatedAt: sourceUpdatedAt ?? input.retrievedAt };
+    return { record, updatedAt: sourceUpdatedAt ?? input.retrievedAt, retrievedAt: input.retrievedAt };
   });
   const key = digest(input);
   return {

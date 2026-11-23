@@ -74,7 +74,7 @@ export async function publishReview(models, review) {
   const { Scheme, SchemeVersion, SourceMember, SchemeRuleVersion, ChangeEvent, ReviewCase } = models;
   const { dataset, sourceId, externalRecordId } = review;
   const identity = { dataset, sourceId, externalRecordId };
-  const { record, relationships, closureEvidence } = review.normalization;
+  const { record, relationships, closureEvidence, fieldProvenance } = review.normalization;
   const { externalRecordId: _id, eligibility, ...data } = record;
   const verifiedAt = review.decidedAt ?? new Date();
   const fields = {
@@ -111,7 +111,7 @@ export async function publishReview(models, review) {
       schemeId: scheme._id, versionNo: (latest?.versionNo ?? 0) + 1,
     }, { $setOnInsert: {
       reviewDecisionId: review._id, recordHash, sourceRecordId: review.sourceRecordId,
-      fields, fieldProvenance: Object.fromEntries(Object.keys(fields).map(key => [key, data.sourceRefs])),
+      fields, fieldProvenance: fieldProvenance ?? Object.fromEntries(Object.keys(fields).map(key => [key, data.sourceRefs])),
       publishedAt: verifiedAt,
     } }, { upsert: true, new: true, runValidators: true }).lean();
   }

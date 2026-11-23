@@ -1,0 +1,103 @@
+{
+  "dataset": "authorized",
+  "source": {
+    "id": "pib-scheme-pilot",
+    "name": "Press Information Bureau (PIB), Government of India",
+    "baseUrl": "https://www.pib.gov.in/",
+    "accessPermissions": "PIB permits accurate reproduction with prominent acknowledgment under https://www.pib.gov.in/ContentPage.aspx?lang=2&menuid=630&reg=48. This hand-curated snapshot summarizes original government scheme information. Third-party material is excluded, and external government portals are cited by link.",
+    "retentionPolicy": "reference_only",
+    "evidenceOrigins": [
+      "https://www.pib.gov.in",
+      "https://www.pmsuryaghar.gov.in",
+      "https://pmvishwakarma.gov.in"
+    ]
+  },
+  "retrievedAt": "2026-11-23T15:21:32+05:30",
+  "records": [
+    {
+      "updatedAt": "2026-11-17T09:42:00+05:30",
+      "record": {
+        "externalRecordId": "pm-surya-ghar",
+        "canonicalName": "PM Surya Ghar: Muft Bijli Yojana",
+        "description": "A nationwide central government scheme that helps residential electricity consumers install rooftop solar. Households register through the national portal.",
+        "keywords": ["rooftop solar", "solar panels", "electricity"],
+        "categoryIds": ["Energy"],
+        "benefitTypes": ["Subsidy", "Loan"],
+        "issuer": "Ministry of New and Renewable Energy",
+        "governmentLevel": "central",
+        "nationwide": true,
+        "lifecycleStatus": "active",
+        "verificationStatus": "verified",
+        "lastVerifiedAt": "2026-11-23T15:21:32+05:30",
+        "benefits": [
+          "Central financial assistance for eligible residential rooftop solar installations.",
+          "Eligible households can access collateral-free financing through participating banks, subject to lending terms."
+        ],
+        "eligibilityText": "The residential component covers consumers, including rural households, with a grid-connected electricity connection from their local electricity distribution company. Confirm installation, subsidy and document requirements through the national portal before applying.",
+        "applicationUrl": "https://www.pmsuryaghar.gov.in/",
+        "sourceRefs": [
+          { "label": "PIB / Ministry of New and Renewable Energy — residential eligibility and how to apply", "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48" },
+          { "label": "PIB / Government of India — November 2026 nationwide programme update", "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2337251&lang=1&reg=17" },
+          { "label": "PIB / Ministry of New and Renewable Energy — subsidy and financing", "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290407&lang=2&reg=48" }
+        ]
+      },
+      "fieldProvenance": {
+        "canonicalName": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48"],
+        "description": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48", "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2337251&lang=1&reg=17"],
+        "keywords": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48"],
+        "categoryIds": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48"],
+        "benefitTypes": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290407&lang=2&reg=48"],
+        "issuer": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48"],
+        "governmentLevel": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290407&lang=2&reg=48"],
+        "nationwide": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48", "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2337251&lang=1&reg=17"],
+        "lifecycleStatus": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2337251&lang=1&reg=17"],
+        "benefits": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290407&lang=2&reg=48", "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2337251&lang=1&reg=17"],
+        "eligibilityText": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48"],
+        "applicationUrl": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48"]
+      }
+    },
+    {
+      "updatedAt": "2026-09-18T01:00:00+05:30",
+      "record": {
+        "externalRecordId": "pm-vishwakarma",
+        "canonicalName": "PM Vishwakarma",
+        "description": "A central government scheme supporting artisans and craftspeople in 18 traditional trades across India. The published registration route is through Common Service Centres (CSCs). The ministry reported that the enrolment target was reached. Check with a CSC for current intake.",
+        "keywords": ["artisans", "craftspeople", "traditional trades"],
+        "categoryIds": ["Skills & Employment"],
+        "benefitTypes": ["Training", "Loan", "Toolkit"],
+        "issuer": "Ministry of Micro, Small and Medium Enterprises",
+        "governmentLevel": "central",
+        "nationwide": true,
+        "lifecycleStatus": "unknown",
+        "verificationStatus": "verified",
+        "lastVerifiedAt": "2026-11-23T15:21:32+05:30",
+        "benefits": [
+          "Registered and verified beneficiaries receive a scheme certificate and ID card.",
+          "Basic and advanced skills training with a stipend of ₹500 per training day.",
+          "Toolkit support of up to ₹15,000 for eligible beneficiaries.",
+          "Collateral-free enterprise development loans of up to ₹3 lakh in two tranches, subject to training and other tranche conditions.",
+          "Digital transaction incentives and marketing support."
+        ],
+        "eligibilityText": "The published criteria include age 18 or older, self-employment in the unorganised sector and work with hands and tools in one of the 18 notified family-based traditional trades. Registration is limited to one family member. Government-service households and recent similar government business or self-employment loans are subject to exclusions, with an exception for fully repaid MUDRA or PM SVANidhi loans. Check the official criteria and current intake with a Common Service Centre.",
+        "sourceRefs": [
+          { "label": "PIB / Government of India — eligibility, benefits and CSC registration", "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48" },
+          { "label": "PIB / Ministry of MSME — September 2026 implementation and enrolment update", "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2311768&lang=2&reg=48" },
+          { "label": "PM Vishwakarma government portal — scheme information", "url": "https://pmvishwakarma.gov.in/" }
+        ]
+      },
+      "fieldProvenance": {
+        "canonicalName": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2311768&lang=2&reg=48"],
+        "description": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48", "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2311768&lang=2&reg=48"],
+        "keywords": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48"],
+        "categoryIds": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48"],
+        "benefitTypes": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48"],
+        "issuer": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2311768&lang=2&reg=48"],
+        "governmentLevel": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48"],
+        "nationwide": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48", "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2311768&lang=2&reg=48"],
+        "lifecycleStatus": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2311768&lang=2&reg=48"],
+        "benefits": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48"],
+        "eligibilityText": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48"]
+      }
+    }
+  ]
+}

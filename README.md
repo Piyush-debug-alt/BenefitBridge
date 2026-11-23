@@ -52,6 +52,53 @@ npm run seed:authorized -- "D:/path/to/authorized-catalogue.json"
 
 This legacy seed command is for an initial dataset that the operator has already verified. It writes immutable initial versions and skips identical records. Use the M5 workflow below for updates to published records and authoritative closures. The application reads the published MongoDB catalogue directly.
 
+### Reviewed real-data pilot
+
+The [PIB pilot snapshot](data/authorized/pib-pilot.json) contains PM Surya Ghar and PM Vishwakarma. The supporting publications were reviewed on 23 November 2026. The snapshot uses attributed summaries of original government material and links to external government portals. PIB's permission covers accurate reuse with prominent attribution and excludes third-party material. [PIB copyright policy](https://www.pib.gov.in/ContentPage.aspx?lang=2&menuid=630&reg=48)
+
+- **PM Surya Ghar** lists residential rooftop-solar assistance, financing and the national application portal. Check the portal for current household-specific subsidy, financing terms and required documents. [MNRE eligibility and application instructions](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2290402&lang=2&reg=48) · [November 2026 programme update](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2337251&lang=1&reg=17)
+- **PM Vishwakarma** lists published eligibility, benefits and Common Service Centre registration guidance. The ministry reported reaching the enrolment target. Current intake is unknown and needs confirmation with a centre. [PIB scheme brief](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2310717&lang=2&reg=48) · [MSME enrolment update](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2311768&lang=2&reg=48)
+
+Both listings use informational eligibility text. Application deadlines and document lists are left unset pending verification. Categories, benefit types and keywords are BenefitBridge search labels derived from the cited publications.
+
+For the already-published local pilot, run MongoDB with the existing workspace data directory. From the project root, in its own PowerShell terminal, run the following. Substitute the path to your installed `mongod.exe` if the cached executable is unavailable.
+
+```powershell
+New-Item -ItemType Directory -Force .local/pib-pilot-mongo | Out-Null
+& .\.local\mongodb\mongod-x64-win32-7.0.24.exe --dbpath .local/pib-pilot-mongo --bind_ip 127.0.0.1 --port 27028
+```
+
+In a second terminal, start the API against the dedicated pilot database.
+
+```powershell
+$env:MONGODB_URI = 'mongodb://127.0.0.1:27028'
+$env:MONGODB_DATABASE = 'benefitbridge_pib_pilot'
+$env:APP_ORIGIN = 'http://127.0.0.1:5198'
+$env:PORT = '4098'
+node api/src/server.js
+```
+
+In a third terminal, start Vite with a pilot-only proxy and open [the pilot catalogue](http://127.0.0.1:5198/).
+
+```powershell
+node --input-type=module -e "import {createServer} from 'vite'; const vite = await createServer({root:'web',server:{port:5198,proxy:{'/api':{target:'http://127.0.0.1:4098'}}}}); await vite.listen(); vite.printUrls();"
+```
+
+Search for **rooftop** or **Vishwakarma**, try the **Energy** or **Toolkit** filter, and open the scheme details to see the PIB citations. [A Maharashtra-filtered catalogue URL](http://127.0.0.1:5198/?state=MH) includes both nationwide records. The state dropdown gets its options from state-specific records, so this pilot uses the URL to exercise the state filter.
+
+To reproduce the import in a fresh pilot database or replay it, use a fourth terminal. Register a local account at the pilot's **Account** page and substitute that email in the administrative command.
+
+```powershell
+$env:MONGODB_URI = 'mongodb://127.0.0.1:27028'
+$env:MONGODB_DATABASE = 'benefitbridge_pib_pilot'
+$env:INGEST_SOURCE_FILE = (Resolve-Path .\data\authorized\pib-pilot.json).Path
+$env:AI_EXTRACTION_PROVIDER = 'off'
+npm.cmd run sync -- grant-admin you@example.test
+npm.cmd run sync -- snapshot
+```
+
+Sign in again and open [Catalogue administration](http://127.0.0.1:5198/admin). On a fresh import, open each pending case, inspect **Evidence and previous version**, and record an approval reason before saving. Run `npm.cmd run sync -- once` in the fourth terminal to publish approved cases. On replay, the same snapshot produces no new reviews or versions. The administrative detail includes field citations and the captured retrieval timestamp.
+
 ## How guest matching works
 
 - The questionnaire requests questions for the scheme IDs on the current results page. The API uses only supported, verified criteria tied to the published version and a listed source reference. A shared question is asked once even when several schemes use it.
@@ -143,7 +190,7 @@ Run `npm.cmd run notifications:demo` without `--once` to process the demo queue 
 
 ### Source configuration
 
-- File mode uses an absolute `INGEST_SOURCE_FILE` (or `DEMO_INGEST_SOURCE_FILE`). The [synthetic snapshot](api/test/fixtures/synthetic/sync-snapshot.json) shows both forms of a record. A plain record can include `sourceUpdatedAt` and otherwise uses the file's `retrievedAt`. The envelope uses `record`, `updatedAt`, optional `authenticity: "uncertain"`, `relationships`, and `closureEvidence`. Use a genuinely reliable per-record source timestamp when the provider supplies one.
+- File mode uses an absolute `INGEST_SOURCE_FILE` (or `DEMO_INGEST_SOURCE_FILE`). The [synthetic snapshot](api/test/fixtures/synthetic/sync-snapshot.json) shows both forms of a record. A plain record can include `sourceUpdatedAt` and otherwise uses the file's `retrievedAt`. The envelope uses `record`, `updatedAt`, optional `authenticity: "uncertain"`, `relationships`, and `closureEvidence`. It also accepts optional `fieldProvenance` mapping record fields to URL arrays drawn from that record's `sourceRefs`. File imports preserve the snapshot's `retrievedAt` as the evidence retrieval date. Use a genuinely reliable per-record source timestamp when the provider supplies one.
 - HTTPS mode uses `INGEST_ENDPOINT`, `INGEST_SOURCE_METADATA` (JSON with `id`, `name`, `baseUrl`, `accessPermissions`, `retentionPolicy`, and `evidenceOrigins`), optional `INGEST_AUTHORIZATION`, and `INGEST_INCREMENTAL=true` when supported. Use only a verified and permitted endpoint. There is currently no live government provider configured or verified. A provider with a different payload needs a mapper implementing the same adapter contract.
 - The contract is `page({ mode, cursor, checkpoint })`. A response supplies `records` in envelope form and `nextCursor` (null on the final page). Snapshot pages carry a stable `snapshotKey` and the final page must explicitly report `complete: true`. Incremental runs return an opaque checkpoint on the final page. A snapshot may supply a checkpoint if the provider defines it in the same checkpoint stream. Configure `INGEST_POLL_MS` and `INGEST_RECONCILE_MS` to adjust the 15-minute polling and 24-hour reconciliation defaults. File-only feeds run snapshots.
 - `reference_only` keeps source URLs and normalized evidence. `permitted_original` also retains valid original envelopes up to 256 KB when the provider permits it. Evidence links, including official closure evidence and application links, must be within configured evidence origins. An absent record creates a review only after a complete snapshot with no invalid rows. Source-confirmed closure requires explicit evidence and reviewer approval. Similar names keep separate source identities.
