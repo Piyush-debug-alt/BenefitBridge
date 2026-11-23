@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { handleError, HttpError, notFound, requestId } from './middleware/http.js';
 import { catalogueRouter } from './modules/catalogue/routes.js';
+import { matchingRouter } from './modules/matching/routes.js';
 
 export function createApp({ models, dataset, isReady }) {
   const app = express();
@@ -25,7 +26,7 @@ export function createApp({ models, dataset, isReady }) {
     res.set('Cache-Control', 'no-store');
     if (!isReady()) return next(new HttpError(503, 'DATABASE_UNAVAILABLE', 'The catalogue database is unavailable.'));
     next();
-  }, catalogueRouter(models.Scheme, dataset));
+  }, catalogueRouter(models.Scheme, dataset), matchingRouter(models, dataset));
 
   app.use(notFound, handleError);
   return app;

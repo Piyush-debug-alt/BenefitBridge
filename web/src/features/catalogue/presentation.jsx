@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { dataset } from './client.js';
+import { MatchExplanation } from './MatchExplanation.jsx';
 
 const lifecycleLabels = { active: 'Active', closed: 'Closed', unknown: 'Availability unknown' };
 const verificationLabels = {
@@ -28,7 +29,7 @@ export function SchemeStatuses({ scheme }) {
   );
 }
 
-export function SchemeCard({ scheme, returnTo }) {
+export function SchemeCard({ scheme, returnTo, match }) {
   return (
     <article className="scheme-card">
       <p className="category">{scheme.categoryIds.join(' · ')}</p>
@@ -40,6 +41,7 @@ export function SchemeCard({ scheme, returnTo }) {
         <span>Last checked {formatDate(scheme.lastVerifiedAt)}</span>
       </div>
       <SchemeStatuses scheme={scheme} />
+      {match && <MatchExplanation match={match} />}
     </article>
   );
 }

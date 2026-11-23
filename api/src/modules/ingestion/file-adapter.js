@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { governmentLevels, lifecycleStatuses, stateCode, verificationStatuses } from '../catalogue/validation.js';
+import { eligibilitySchema } from '../matching/criteria.js';
 
 const shortText = z.string().trim().min(1).max(100);
 const paragraph = z.string().trim().min(1).max(4000);
@@ -28,6 +29,7 @@ const record = z.strictObject({
   applicationUrl: webUrl.optional(),
   benefits: z.array(paragraph).max(20).default([]),
   eligibilityText: paragraph.optional(),
+  eligibility: eligibilitySchema.optional(),
   requiredDocuments: z.array(shortText).max(30).default([]),
   lastVerifiedAt: timestamp.optional(),
 }).superRefine((value, context) => {
@@ -36,6 +38,8 @@ const record = z.strictObject({
     [value.nationwide && value.stateCodes.length > 0, 'stateCodes', 'Nationwide records must omit state codes.'],
     [value.governmentLevel === 'state' && value.stateCodes.length === 0, 'stateCodes', 'State records require at least one state code.'],
     [value.verificationStatus === 'verified' && !value.lastVerifiedAt, 'lastVerifiedAt', 'Verified information requires a verification date.'],
+    [value.eligibility && value.verificationStatus !== 'verified', 'eligibility', 'Structured eligibility requires a verified scheme.'],
+    [value.eligibility && !value.sourceRefs.some(ref => ref.url === value.eligibility.evidenceUrl), 'eligibility', 'Eligibility evidence must be one of the scheme source references.'],
   ];
   for (const [condition, field, message] of problems) {
     if (condition) context.addIssue({ code: 'custom', path: [field], message });

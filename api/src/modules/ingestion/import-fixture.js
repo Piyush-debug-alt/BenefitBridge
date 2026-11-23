@@ -1,9 +1,22 @@
 import { createHash } from 'node:crypto';
 import { parseFixture } from './file-adapter.js';
 
+async function attachEligibility(SchemeRuleVersion, schemeId, schemeVersionId, rule, externalRecordId) {
+  if (!rule) return;
+
+  const existing = await SchemeRuleVersion.findOneAndUpdate(
+    { schemeId, schemeVersionId },
+    { $setOnInsert: { rule } },
+    { upsert: true, new: true, runValidators: true },
+  ).lean();
+  if (JSON.stringify(existing.rule) !== JSON.stringify(rule)) {
+    throw new Error('Changed eligibility requires review: ' + externalRecordId);
+  }
+}
+
 export async function importFixture(models, dataset, input) {
   const { source, records, retrievedAt } = parseFixture(input, dataset);
-  const { Source, SourceRecord, Scheme, SchemeVersion } = models;
+  const { Source, SourceRecord, Scheme, SchemeVersion, SchemeRuleVersion } = models;
   const { id: sourceId, ...sourceFields } = source;
   await Source.updateOne({ _id: sourceId, dataset }, { $setOnInsert: sourceFields }, {
     upsert: true,
@@ -13,7 +26,8 @@ export async function importFixture(models, dataset, input) {
   let published = 0;
   let skipped = 0;
   for (const record of records) {
-    const { externalRecordId, ...fields } = record;
+    // Rules have their own version, so existing M1 catalogue hashes stay valid.
+    const { externalRecordId, eligibility, ...fields } = record;
     const identity = { dataset, sourceId, externalRecordId };
     const recordHash = createHash('sha256').update(JSON.stringify(fields)).digest('hex');
     const scheme = await Scheme.findOneAndUpdate(identity, {
@@ -25,6 +39,7 @@ export async function importFixture(models, dataset, input) {
       if (scheme.publicationStatus !== 'published' || !current || current.recordHash !== recordHash) {
         throw new Error('A changed or quarantined record requires review: ' + externalRecordId);
       }
+      await attachEligibility(SchemeRuleVersion, scheme._id, current._id, eligibility, externalRecordId);
       skipped += 1;
       continue;
     }
@@ -41,6 +56,7 @@ export async function importFixture(models, dataset, input) {
     if (version.recordHash !== recordHash) {
       throw new Error('Retry the initial import with its original record: ' + externalRecordId);
     }
+    await attachEligibility(SchemeRuleVersion, scheme._id, version._id, eligibility, externalRecordId);
 
     const result = await Scheme.updateOne({ _id: scheme._id, publicationStatus: 'draft' }, {
       $set: { ...fields, lastSyncedAt: retrievedAt, currentVersionId: version._id, publicationStatus: 'published' },

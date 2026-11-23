@@ -40,6 +40,28 @@
           "url": "https://benefitbridge.example.invalid/fixtures/learning-grant"
         }
       ],
+      "eligibility": {
+        "status": "verified",
+        "evidenceUrl": "https://benefitbridge.example.invalid/fixtures/learning-grant",
+        "pathsExhaustive": true,
+        "paths": [
+          {
+            "complete": true,
+            "conditions": [
+              {
+                "attribute": "currentlyStudying",
+                "operator": "eq",
+                "value": true
+              },
+              {
+                "attribute": "age",
+                "operator": "atLeast",
+                "value": 16
+              }
+            ]
+          }
+        ]
+      },
       "benefits": [
         "Example benefit information for exercising the detail page."
       ],
@@ -82,6 +104,28 @@
           "url": "https://benefitbridge.example.invalid/fixtures/student-transport"
         }
       ],
+      "eligibility": {
+        "status": "verified",
+        "evidenceUrl": "https://benefitbridge.example.invalid/fixtures/student-transport",
+        "pathsExhaustive": true,
+        "paths": [
+          {
+            "complete": true,
+            "conditions": [
+              {
+                "attribute": "currentlyStudying",
+                "operator": "eq",
+                "value": true
+              },
+              {
+                "attribute": "age",
+                "operator": "atMost",
+                "value": 25
+              }
+            ]
+          }
+        ]
+      },
       "benefits": [
         "Example benefit information for exercising the detail page."
       ],
@@ -155,6 +199,33 @@
           "url": "https://benefitbridge.example.invalid/fixtures/home-energy"
         }
       ],
+      "eligibility": {
+        "status": "verified",
+        "evidenceUrl": "https://benefitbridge.example.invalid/fixtures/home-energy",
+        "pathsExhaustive": true,
+        "paths": [
+          {
+            "complete": true,
+            "conditions": [
+              {
+                "attribute": "ownsHome",
+                "operator": "eq",
+                "value": true
+              }
+            ]
+          },
+          {
+            "complete": true,
+            "conditions": [
+              {
+                "attribute": "hasOwnerPermission",
+                "operator": "eq",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
       "benefits": [
         "Example benefit information for exercising the detail page."
       ],
@@ -232,6 +303,23 @@
           "url": "https://benefitbridge.example.invalid/fixtures/training-voucher"
         }
       ],
+      "eligibility": {
+        "status": "verified",
+        "evidenceUrl": "https://benefitbridge.example.invalid/fixtures/training-voucher",
+        "pathsExhaustive": true,
+        "paths": [
+          {
+            "complete": false,
+            "conditions": [
+              {
+                "attribute": "age",
+                "operator": "atLeast",
+                "value": 18
+              }
+            ]
+          }
+        ]
+      },
       "benefits": [
         "Example benefit information for exercising the detail page."
       ],
@@ -422,6 +510,23 @@
           "url": "https://benefitbridge.example.invalid/fixtures/library-pass"
         }
       ],
+      "eligibility": {
+        "status": "verified",
+        "evidenceUrl": "https://benefitbridge.example.invalid/fixtures/library-pass",
+        "pathsExhaustive": false,
+        "paths": [
+          {
+            "complete": true,
+            "conditions": [
+              {
+                "attribute": "currentlyStudying",
+                "operator": "eq",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
       "benefits": [
         "Example benefit information for exercising the detail page."
       ],

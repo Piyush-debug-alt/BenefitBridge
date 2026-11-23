@@ -1,7 +1,7 @@
 export const dataset = import.meta.env.MODE === 'demo' ? 'synthetic' : 'authorized';
 
-export async function readCatalogue(path, signal) {
-  const response = await fetch('/api/v1' + path, { signal });
+export async function readCatalogue(path, signal, options) {
+  const response = await fetch('/api/v1' + path, { ...options, signal });
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     const error = new Error(data?.message ?? 'The catalogue is currently unavailable.');

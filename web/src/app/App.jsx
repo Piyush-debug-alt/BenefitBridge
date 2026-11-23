@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Link, Route, Routes } from 'react-router';
 import { CataloguePage } from '../features/catalogue/CataloguePage.jsx';
 import { SchemePage } from '../features/catalogue/SchemePage.jsx';
 import { dataset } from '../features/catalogue/client.js';
 
 export function App() {
+  const [answers, setAnswers] = useState(null);
+
   return (
     <>
       <a href="#main" className="skip-link">Skip to content</a>
@@ -23,7 +26,7 @@ export function App() {
       )}
       <main id="main" tabIndex={-1}>
         <Routes>
-          <Route path="/" element={<CataloguePage />} />
+          <Route path="/" element={<CataloguePage answers={answers} setAnswers={setAnswers} />} />
           <Route path="/schemes/:schemeId" element={<SchemePage />} />
           <Route path="*" element={
             <section className="shell detail-shell">

@@ -30,6 +30,14 @@ describe('configuration and fixture validation', () => {
     expect(() => parseFixture(invalid, 'synthetic')).toThrow(/Duplicate source record ID/);
     expect(() => parseFixture(invalid, 'synthetic')).toThrow(/Nationwide scope/);
   });
+
+  it('requires verified publication data and linked evidence for imported eligibility', () => {
+    const record = fixture.records[0];
+    const unverified = { ...record, verificationStatus: 'stale' };
+    const unlinked = { ...record, eligibility: { ...record.eligibility, evidenceUrl: 'https://other.example.invalid' } };
+    expect(() => parseFixture({ ...fixture, records: [unverified] }, 'synthetic')).toThrow(/requires a verified scheme/);
+    expect(() => parseFixture({ ...fixture, records: [unlinked] }, 'synthetic')).toThrow(/one of the scheme source references/);
+  });
 });
 
 describe('catalogue backed by MongoDB', () => {
@@ -48,7 +56,9 @@ describe('catalogue backed by MongoDB', () => {
     development = await connectDatabase(normalConfig);
     api = request(createApp({ models: demo.models, dataset: demoConfig.dataset, isReady: () => true }));
     normalApi = request(createApp({ models: development.models, dataset: normalConfig.dataset, isReady: () => true }));
-    expect(await importFixture(demo.models, demoConfig.dataset, fixture)).toEqual({ published: 13, skipped: 0 });
+    const phaseOne = { ...fixture, records: fixture.records.map(({ eligibility, ...record }) => record) };
+    expect(await importFixture(demo.models, demoConfig.dataset, phaseOne)).toEqual({ published: 13, skipped: 0 });
+    expect(await importFixture(demo.models, demoConfig.dataset, fixture)).toEqual({ published: 0, skipped: 13 });
   });
 
   afterAll(async () => {
@@ -138,5 +148,72 @@ describe('catalogue backed by MongoDB', () => {
     const changed = { ...fixture, records: [{ ...fixture.records[0], description: 'Changed fixture description.' }] };
     await expect(importFixture(demo.models, 'synthetic', changed)).rejects.toThrow(/requires review/);
     expect((await Scheme.findById(scheme._id)).description).toBe(fixture.records[0].description);
+  });
+
+  it('selects only relevant questions and ranks all selected public results without persisting answers', async () => {
+    const { Scheme, SchemeRuleVersion } = demo.models;
+    const [solar, garden, education] = await Promise.all(
+      ['home-energy', 'garden-kits', 'learning-grant'].map(externalRecordId => Scheme.findOne({ externalRecordId })),
+    );
+    const schemeIds = [education.id, garden.id, solar.id];
+    const rule = await SchemeRuleVersion.findOne({ schemeId: solar.id }).lean();
+    expect(String(rule.schemeVersionId)).toBe(String(solar.currentVersionId));
+    const before = await SchemeRuleVersion.find({}).sort('_id').lean();
+    const collections = await demo.connection.db.listCollections().toArray();
+
+    const solarQuestions = await api.get('/api/v1/questions').query({ schemeIds: solar.id }).expect(200);
+    expect(solarQuestions.body.questions.map(question => question.id)).toEqual(['ownsHome', 'hasOwnerPermission']);
+    const questions = await api.get('/api/v1/questions').query({ schemeIds: schemeIds.join(',') }).expect(200);
+    expect(questions.body.questions.map(question => question.id))
+      .toEqual(['age', 'currentlyStudying', 'ownsHome', 'hasOwnerPermission']);
+    const result = await api.post('/api/v1/matches/evaluate').send({
+      schemeIds, answers: { age: 27, currentlyStudying: false, ownsHome: false, hasOwnerPermission: true },
+    }).expect(200);
+    expect(result.headers['cache-control']).toBe('no-store');
+    expect(result.body.results.map(({ schemeId, outcome }) => [schemeId, outcome])).toEqual([
+      [solar.id, 'POTENTIAL_MATCH'], [garden.id, 'NEEDS_INFO'], [education.id, 'KNOWN_UNMET'],
+    ]);
+    expect(result.body.results[0].paths.map(path => path.status)).toEqual(['FAIL', 'PASS']);
+    expect(await SchemeRuleVersion.find({}).sort('_id').lean()).toEqual(before);
+    expect(await demo.connection.db.listCollections().toArray()).toEqual(collections);
+  });
+
+  it('suppresses mismatched versions, stale rules, and cross-environment scheme IDs', async () => {
+    const { Scheme } = demo.models;
+    const solar = await Scheme.findOne({ externalRecordId: 'home-energy' });
+    for (const update of [{ verificationStatus: 'stale' }, { currentVersionId: '000000000000000000000002' }]) {
+      try {
+        await Scheme.updateOne({ _id: solar._id }, { $set: update });
+        const questions = await api.get('/api/v1/questions').query({ schemeIds: solar.id }).expect(200);
+        expect(questions.body.questions).toEqual([]);
+        const match = await api.post('/api/v1/matches/evaluate').send({ schemeIds: [solar.id], answers: {} }).expect(200);
+        expect(match.body.results).toMatchObject([{ outcome: 'NEEDS_INFO', paths: [] }]);
+      } finally {
+        await Scheme.updateOne({ _id: solar._id }, { $set: {
+          verificationStatus: 'verified', currentVersionId: solar.currentVersionId,
+        } });
+      }
+    }
+    const result = await normalApi.post('/api/v1/matches/evaluate').send({ schemeIds: [solar.id], answers: {} }).expect(200);
+    expect(result.body).toEqual({ dataset: 'authorized', results: [] });
+  });
+
+  it('refuses changed rule sets and invalid, oversized or irrelevant answers without echoing request data', async () => {
+    const record = fixture.records[0];
+    const changed = { ...record, eligibility: { ...record.eligibility, pathsExhaustive: false } };
+    await expect(importFixture(demo.models, 'synthetic', { ...fixture, records: [changed] })).rejects.toThrow(/requires review/);
+    const scheme = await demo.models.Scheme.findOne({ externalRecordId: record.externalRecordId });
+    const schemeIds = [scheme.id];
+    const privateValue = 'private-guest-value';
+    const invalid = await api.post('/api/v1/matches/evaluate').send({
+      schemeIds, answers: { [privateValue]: privateValue },
+    }).expect(400);
+    expect(invalid.text).not.toContain(privateValue);
+    await api.post('/api/v1/matches/evaluate').send({ schemeIds, answers: { ownsHome: true } }).expect(400);
+    await api.post('/api/v1/matches/evaluate').send({ schemeIds, answers: { age: 200 } }).expect(400);
+    const malformed = await api.post('/api/v1/matches/evaluate').type('json').send('{"' + privateValue).expect(400);
+    expect(malformed.text).not.toContain(privateValue);
+    await api.post('/api/v1/matches/evaluate').send({ schemeIds, answers: { age: 'x'.repeat(9000) } }).expect(413);
+    await api.get('/api/v1/questions').query({ schemeIds: [scheme.id, scheme.id].join(',') }).expect(400);
   });
 });

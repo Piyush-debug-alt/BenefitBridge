@@ -1,8 +1,10 @@
-import { useId } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { readCatalogue } from './client.js';
 import { SchemeCard } from './presentation.jsx';
+import { PersonalizePanel } from './PersonalizePanel.jsx';
+import { usePersonalization } from './usePersonalization.js';
 
 const filterFields = [
   ['state', 'State or territory', 'states'],
@@ -39,9 +41,11 @@ function getOptions(key, values) {
   return (values ?? []).map(value => [value, Object.hasOwn(labels, value) ? labels[value] : value]);
 }
 
-export function CataloguePage() {
+export function CataloguePage({ answers, setAnswers }) {
   const [params, setParams] = useSearchParams();
   const location = useLocation();
+  const [panelOpen, setPanelOpen] = useState(false);
+  const personalizeButton = useRef(null);
   const apiParams = new URLSearchParams([...params].filter(([key]) => permittedKeys.has(key)));
   apiParams.sort();
 
@@ -53,6 +57,20 @@ export function CataloguePage() {
     queryKey: ['facets'],
     queryFn: ({ signal }) => readCatalogue('/facets', signal),
   });
+
+  const results = catalogue.data?.items ?? [];
+  const schemeIds = results.map(scheme => scheme._id).join(',');
+  const questions = useQuery({
+    queryKey: ['questions', schemeIds],
+    queryFn: ({ signal }) => readCatalogue('/questions?' + new URLSearchParams({ schemeIds }), signal),
+    enabled: Boolean(schemeIds && (panelOpen || answers !== null)),
+  });
+  const personalization = usePersonalization(schemeIds, questions.isError ? undefined : questions.data?.questions, answers);
+  const matchById = new Map(personalization.matches?.map(match => [match.schemeId, match]));
+  const positionById = new Map(personalization.matches?.map((match, index) => [match.schemeId, index]));
+  const orderedResults = personalization.matches ? [...results].sort((left, right) =>
+    (positionById.get(left._id) ?? results.length) - (positionById.get(right._id) ?? results.length)
+  ) : results;
 
   function update(name, value) {
     const next = new URLSearchParams(params);
@@ -69,7 +87,6 @@ export function CataloguePage() {
 
   const activeFilters = filterFields.some(([key]) => params.has(key)) || params.has('goal');
   const pagination = catalogue.data?.pagination;
-  const results = catalogue.data?.items ?? [];
   const total = pagination?.total;
 
   return (
@@ -104,12 +121,37 @@ export function CataloguePage() {
               value={params.get(key) ?? ''} update={update} />
           ))}
           <p className="filter-hint">A state selection also includes nationwide central schemes.</p>
+          <div className="personalize-actions">
+            <button className="secondary-button" type="button" aria-haspopup="dialog" ref={personalizeButton}
+              disabled={!schemeIds} onClick={() => setPanelOpen(true)}>Personalize Results</button>
+            {answers !== null && <button className="text-link" type="button"
+              onClick={() => {
+                setAnswers(null);
+                personalizeButton.current?.focus();
+              }}>Reset personalization</button>}
+          </div>
         </aside>
         <section className="results" aria-labelledby="results-heading">
           <div className="results-heading">
             <h2 id="results-heading">Schemes</h2>
             {total !== undefined && <p role="status">{total} {total === 1 ? 'result' : 'results'}</p>}
           </div>
+          {answers !== null && schemeIds && (
+            <div className="personalization-note">
+              {questions.isError || personalization.error ? (
+                <p role="alert">Personalization is unavailable. Showing ordinary results.{' '}
+                  <button className="text-link" type="button"
+                    onClick={() => questions.isError ? questions.refetch() : personalization.retry()}>
+                    Retry personalization
+                  </button>
+                </p>
+              ) : (
+                <p role="status">{questions.isPending || personalization.pending
+                  ? 'Checking your answers…'
+                  : 'Personalized ranking applies to this page. Match results are informational.'}</p>
+              )}
+            </div>
+          )}
           {catalogue.isPending && <p role="status" className="empty-state">Loading schemes…</p>}
           {catalogue.isError && (
             <div role="alert" className="empty-state">
@@ -128,7 +170,8 @@ export function CataloguePage() {
           )}
           {results.length > 0 && (
             <div className="results-list">
-              {results.map(scheme => <SchemeCard key={scheme._id} scheme={scheme} returnTo={location.search} />)}
+              {orderedResults.map(scheme => <SchemeCard key={scheme._id} scheme={scheme}
+                match={matchById.get(scheme._id)} returnTo={location.search} />)}
             </div>
           )}
           {pagination && (pagination.totalPages > 1 || pagination.page > 1) && (
@@ -142,6 +185,11 @@ export function CataloguePage() {
           )}
         </section>
       </div>
+      {panelOpen && <PersonalizePanel questions={questions} answers={answers} onApply={setAnswers}
+        onClose={() => {
+          setPanelOpen(false);
+          personalizeButton.current?.focus();
+        }} />}
     </>
   );
 }

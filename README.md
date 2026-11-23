@@ -1,6 +1,6 @@
 # BenefitBridge
 
-BenefitBridge is an independent, guest-first catalogue for discovering government scheme information. Phase 1 provides search, filters, pagination, scheme details, and a local fixture importer. The product requirements and system design are in [docs](docs/).
+BenefitBridge is an independent, guest-first catalogue for discovering government scheme information. It provides search, filters, pagination, scheme details, and optional anonymous matching. The product requirements and system design are in [docs](docs/).
 
 ## Run locally
 
@@ -19,7 +19,7 @@ npm ci
 
 ### Synthetic demo
 
-With MongoDB running, seed the fixtures once and start the API and web app in separate terminals:
+With MongoDB running, seed the fixtures and start the API and web app in separate terminals:
 
 ```sh
 npm run seed:demo
@@ -28,6 +28,8 @@ npm run demo:web
 ```
 
 Open [the synthetic demo](http://127.0.0.1:5174). Search for **solar**, select **Maharashtra**, then open **Home Energy Upgrade Rebate**. The nationwide result remains visible with the state filter. Clear the search and filters to try pagination, or select **Closed** under Availability for an archived example.
+
+To try all three matching outcomes, leave the search blank and open **Personalize Results** beside the filters. Enter age **27**, select **No** for studying and home ownership, and select **Yes** for homeowner permission. Apply personalization and expand **Why this result?** on a few cards. The home energy example has an alternative pathway for permission, other listings have incomplete eligibility information, and the learning grant has a known unmet condition. **Reset personalization** clears your answers and restores ordinary ranking. Rerun `npm run seed:demo` on an existing Phase 1 database to attach the fictional rules while preserving the original schemes and their versions.
 
 The demo uses the dedicated `benefitbridge_demo` database and loopback API port 4001. Its fixtures use reserved `.invalid` source references and the UI labels the catalogue as fictional. Repeat seeding skips unchanged records. The regular app rejects both the demo database name and synthetic API responses. If your local MongoDB port differs, copy `api/.env.demo.example` to `api/.env.demo` and adjust `DEMO_MONGODB_URI`. The demo connection accepts a loopback address with a port.
 
@@ -50,6 +52,14 @@ npm run seed:authorized -- "D:/path/to/authorized-catalogue.json"
 
 The importer stages an evidence reference and writes one immutable initial version per scheme. It skips identical published records and rejects changes to published records pending a future review workflow. The application reads the published MongoDB catalogue directly.
 
+## How guest matching works
+
+- The questionnaire requests questions for the scheme IDs on the current results page. The API uses only supported, verified criteria tied to the published version and a listed source reference. A shared question is asked once even when several schemes use it.
+- Within one eligibility pathway, all listed conditions must pass. A verified alternative pathway can satisfy the rules on its own. Missing answers, incomplete pathways, and uncertain sources are explained on the affected card.
+- Matching ranks potential matches first, then schemes needing information, then schemes with known unmet conditions. Ordinary relevance decides the order within each group. Every result stays available, and each page is ranked independently.
+- Answers live in React memory for the current tab and travel in the JSON body of the evaluation request. The server uses them in memory and returns a response with caching disabled. Resetting or reloading clears them.
+- The optional fixture `eligibility` object supports `status: "verified"`, `evidenceUrl` from the record’s `sourceRefs`, `pathsExhaustive`, and `paths`. Each pathway declares `complete` and an array of conditions with `attribute`, `operator`, and `value`. Supported attributes are `age`, `currentlyStudying`, `ownsHome`, and `hasOwnerPermission`. Boolean conditions use `eq`. Integer age can also use `atLeast` and `atMost`. Record verification must come from checked source evidence. [Eligibility schema](api/src/modules/matching/criteria.js)
+
 ## Checks
 
 ```sh
@@ -65,3 +75,5 @@ API integration tests start a temporary MongoDB instance. On the first run they 
 - `GET /api/v1/schemes` browses published records. Use `q`, `goal`, `state`, `category`, `benefitType`, `issuer`, `governmentLevel`, `lifecycleStatus`, `page`, and `limit` as needed. Closed records appear in lists when explicitly requested and retain their detail URLs.
 - `GET /api/v1/facets` provides filter choices from the catalogue.
 - `GET /api/v1/schemes/:schemeId` returns scheme details and source provenance.
+- `GET /api/v1/questions?schemeIds=id1,id2` selects applicable verified questions for up to 50 published schemes.
+- `POST /api/v1/matches/evaluate` accepts JSON with `schemeIds` and an `answers` object. It returns ranked outcomes and condition explanations without storing the answers.
