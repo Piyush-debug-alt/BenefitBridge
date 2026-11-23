@@ -144,6 +144,9 @@ a, button, input, select { outline-offset: 4px; }
 .notification-title { font-weight: 700; }
 .admin-grid { margin-top: 1rem; }
 .admin-evidence { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 25rem; overflow: auto; }
+.extraction-review { display: grid; gap: .65rem; padding-block: .85rem; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.extraction-review h3 { font-weight: 700; }
+.extraction-draft { min-height: 12rem; font-family: monospace; }
 
 @media (max-width: 45rem) {
   .shell { width: calc(100% - 1.75rem); }

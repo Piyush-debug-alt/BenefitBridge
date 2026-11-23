@@ -4,6 +4,8 @@ import { readConfig } from '../../config/env.js';
 import { emailSchema } from '../auth/password.js';
 import { digest, FeedError, fileAdapter, httpAdapter } from './adapters.js';
 import { enqueueSync, scheduleSource, workSource } from './sync.js';
+import { configuredExtractionProvider } from '../extraction/providers.js';
+import { processExtractionBatch } from '../extraction/worker.js';
 
 async function configuredAdapter(dataset, get) {
   const path = get('INGEST_SOURCE_FILE') || (dataset === 'synthetic' && !get('INGEST_ENDPOINT')
@@ -60,6 +62,7 @@ async function run() {
 
     if (!['watch', 'snapshot', 'incremental', 'once'].includes(command)) throw new FeedError('UNKNOWN_COMMAND');
     const adapter = await configuredAdapter(config.dataset, get);
+    const extractionProvider = configuredExtractionProvider(get('AI_EXTRACTION_PROVIDER'));
     const poll = interval(get('INGEST_POLL_MS'), 15 * 60_000, 60_000);
     const reconcile = interval(get('INGEST_RECONCILE_MS'), 24 * 60 * 60_000, 60_000);
     if (command === 'snapshot' || command === 'incremental') {
@@ -69,8 +72,10 @@ async function run() {
     do {
       try {
         if (command === 'watch') await scheduleSource(models, config.dataset, adapter, reconcile, poll);
-        const result = await workSource(models, config.dataset, adapter);
+        const result = await workSource(models, config.dataset, adapter, { extractionProvider });
+        const extracted = await processExtractionBatch(models, config.dataset, adapter.metadata.id, extractionProvider);
         if (command !== 'watch' || result.jobId || result.reviewed) console.log(result);
+        if (extracted) console.log('Processed eligibility proposals: ' + extracted);
         if (command !== 'watch' && ['failed', 'queued', 'interrupted'].includes(result.status)) process.exitCode = 1;
       } catch (error) {
         if (command !== 'watch') throw error;

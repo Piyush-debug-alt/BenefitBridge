@@ -13,6 +13,9 @@ export function Question({ question, answer }) {
             <option value="false">No</option>
           </select>
         </div>
+      ) : question.type === 'state' ? (
+        <input className="question-input" id={id} name={question.id} type="text"
+          maxLength={2} pattern="[A-Za-z]{2}" autoCapitalize="characters" defaultValue={answer ?? ''} />
       ) : (
         <input className="question-input" id={id} name={question.id} type="number" step={1}
           min={question.min} max={question.max} defaultValue={answer ?? ''} />
@@ -27,7 +30,8 @@ export function readAnswers(form, questions) {
   for (const question of questions) {
     const value = values.get(question.id);
     if (value !== '' && value !== null) {
-      answers[question.id] = question.type === 'boolean' ? value === 'true' : Number(value);
+      answers[question.id] = question.type === 'boolean' ? value === 'true'
+        : question.type === 'state' ? value.toUpperCase() : Number(value);
     }
   }
   return answers;

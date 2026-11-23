@@ -9,6 +9,7 @@ import { FeedError } from './adapters.js';
 import { opaqueId } from './file-adapter.js';
 import { decideReview } from './publication.js';
 import { enqueueSync } from './sync.js';
+import { mountExtractionReview } from '../extraction/admin.js';
 
 const pageQuery = listQuery.pick({ page: true, limit: true });
 const reviewQuery = pageQuery.extend({
@@ -96,6 +97,7 @@ export function administrationRouter(models, dataset, config = readAuthConfig({}
     res.json({ status: decision.status });
   });
 
+  mountExtractionReview(admin, models, origin, getReview);
   router.use('/admin', admin);
   return router;
 }

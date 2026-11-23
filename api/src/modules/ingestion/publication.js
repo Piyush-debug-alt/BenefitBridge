@@ -2,6 +2,8 @@ import { queuePublication } from '../notifications/events.js';
 import { digest, FeedError } from './adapters.js';
 import { attachEligibility } from './import-fixture.js';
 import { isMaterial } from './staging.js';
+import { comparableRule } from '../extraction/evidence.js';
+import { retainApprovedRule } from '../extraction/worker.js';
 
 async function verifiedRelationships(Scheme, dataset, scheme, relationships) {
   const links = [];
@@ -19,7 +21,7 @@ async function verifiedRelationships(Scheme, dataset, scheme, relationships) {
   return links;
 }
 
-export async function decideReview(models, review, action, actorId, reason, { syntheticBenchmark = false } = {}) {
+export async function decideReview(models, review, action, actorId, reason, { syntheticBenchmark = false, extractionApproval } = {}) {
   const { ReviewCase } = models;
   const status = { approve: 'approved', reject: 'rejected', defer: 'deferred' }[action];
   if (action === 'approve' && !review.normalization) throw new FeedError('REVIEW_NEEDS_CORRECTED_SOURCE');
@@ -27,9 +29,13 @@ export async function decideReview(models, review, action, actorId, reason, { sy
     _id: review.lastObservedJobId ?? review.jobId, status: 'succeeded',
   })) throw new FeedError('REVIEW_REQUIRES_COMPLETED_SYNC');
   const now = new Date();
-  return ReviewCase.findOneAndUpdate({ _id: review._id, status: { $in: ['pending', 'deferred'] } }, {
-    $set: { status, decidedAt: now, decidedBy: actorId, reason },
-    $push: { decisionHistory: { actorId, action, reason, at: now } },
+  return ReviewCase.findOneAndUpdate({ _id: review._id, status: { $in: ['pending', 'deferred'] },
+    ...(extractionApproval && { extractionId: extractionApproval.extractionId, 'extractionDecision.status': { $exists: false } }),
+  }, {
+    $set: { status, decidedAt: now, decidedBy: actorId, reason,
+      ...(extractionApproval && { extractionDecision: extractionApproval }),
+    },
+    $push: { decisionHistory: { actorId, action: extractionApproval ? 'approve_extraction' : action, reason, at: now } },
     $unset: { publicationError: 1 },
   }, { new: true }).lean();
 }
@@ -111,8 +117,19 @@ export async function publishReview(models, review) {
   }
   if (String(version.reviewDecisionId) !== String(review._id)) throw new FeedError('VERSION_ALREADY_RESERVED');
 
-  await attachEligibility(SchemeRuleVersion, scheme._id, version._id, eligibility, externalRecordId);
-  if (!review.baseVersionId || isMaterial(review.changedFields)) {
+  const previousRule = review.baseVersionId && await SchemeRuleVersion.findOne({
+    schemeId: scheme._id, schemeVersionId: review.baseVersionId,
+  }).select('rule extractionProvenance').lean();
+  const approved = review.extractionDecision?.status === 'approved' ? review.extractionDecision : null;
+  const previousFields = !eligibility && !approved && previousRule?.extractionProvenance &&
+    (await SchemeVersion.findById(review.baseVersionId).select('fields').lean())?.fields;
+  const retain = retainApprovedRule(previousFields, previousRule, record);
+  const rule = approved?.rule ?? eligibility ?? (retain ? previousRule.rule : undefined);
+  const { rule: _approvedRule, ...provenance } = approved ?? {};
+  await attachEligibility(SchemeRuleVersion, scheme._id, version._id, rule, externalRecordId,
+    approved ? provenance : retain ? previousRule.extractionProvenance : undefined);
+  if (!review.baseVersionId || isMaterial(review.changedFields.filter(field => field !== 'eligibility')) ||
+      comparableRule(rule) !== comparableRule(previousRule?.rule)) {
     await queuePublication(ChangeEvent, dataset, scheme._id, version, review.baseVersionId ? 'bookmark_update' : 'profile_match');
   }
 

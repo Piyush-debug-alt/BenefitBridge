@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { digest } from './adapters.js';
 import { opaqueId, record, timestamp, webUrl } from './file-adapter.js';
+import { retainApprovedRule } from '../extraction/worker.js';
 
 const relation = z.strictObject({
   kind: z.enum(['variant_of', 'supplement_to', 'related_to']),
@@ -87,10 +88,11 @@ export async function stageRecord(models, job, source, raw) {
   const previous = scheme?.currentVersionId && await SchemeVersion.findById(scheme.currentVersionId).select('fields').lean();
   const previousRule = scheme?.currentVersionId && await SchemeRuleVersion.findOne({
     schemeId: scheme._id, schemeVersionId: scheme.currentVersionId,
-  }).select('rule').lean();
+  }).select('rule extractionProvenance').lean();
   const { externalRecordId, eligibility, ...fields } = record;
+  const observedRule = eligibility ?? (retainApprovedRule(previous?.fields, previousRule, record) ? previousRule.rule : undefined);
   const changed = changedFields(previous?.fields, previousRule?.rule, {
-    ...fields, ...(relationships.length && { relationships }), ...(eligibility && { eligibility }),
+    ...fields, ...(relationships.length && { relationships }), ...(observedRule && { eligibility: observedRule }),
     ...(closureEvidence && { closureEvidence }),
   });
   const needsReview = changed.length || !scheme?.currentVersionId || sameTimeConflict || authenticity === 'uncertain' ||

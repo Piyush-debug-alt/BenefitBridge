@@ -30,6 +30,7 @@ export function createSyncModels(connection) {
     status: { type: String, enum: ['pending', 'approved', 'published', 'rejected', 'deferred', 'superseded'] },
     sourceRecordId: objectId, jobId: objectId, lastObservedJobId: objectId, baseVersionId: objectId, schemeId: objectId,
     normalization: Schema.Types.Mixed, changedFields: [String], errorCode: String, publicationError: String,
+    extractionId: objectId, extractionDecision: Schema.Types.Mixed,
     sourceUpdatedAt: Date, decidedAt: Date, decidedBy: objectId, reason: String,
     resolvedAt: Date, resolvedByVersion: objectId,
     decisionHistory: { type: [{ _id: false, actorId: objectId, action: String, reason: String, at: Date }], default: undefined },

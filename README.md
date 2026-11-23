@@ -58,7 +58,7 @@ This legacy seed command is for an initial dataset that the operator has already
 - Within one eligibility pathway, all listed conditions must pass. A verified alternative pathway can satisfy the rules on its own. Missing answers, incomplete pathways, and uncertain sources are explained on the affected card.
 - Matching ranks potential matches first, then schemes needing information, then schemes with known unmet conditions. Ordinary relevance decides the order within each group. Every result stays available, and each page is ranked independently.
 - Answers live in React memory for the current tab and travel in the JSON body of the evaluation request. The server uses them in memory and returns a response with caching disabled. Resetting or reloading clears them.
-- The optional fixture `eligibility` object supports `status: "verified"`, `evidenceUrl` from the record’s `sourceRefs`, `pathsExhaustive`, and `paths`. Each pathway declares `complete` and an array of conditions with `attribute`, `operator`, and `value`. Supported attributes are `age`, `currentlyStudying`, `ownsHome`, and `hasOwnerPermission`. Boolean conditions use `eq`. Integer age can also use `atLeast` and `atMost`. Record verification must come from checked source evidence. [Eligibility schema](api/src/modules/matching/criteria.js)
+- The optional fixture `eligibility` object supports `status: "verified"`, `evidenceUrl` from the record’s `sourceRefs`, `pathsExhaustive`, and `paths`. Each pathway declares `complete` and an array of conditions with `attribute`, `operator`, and `value`. Supported attributes cover age, annual income in integer rupees, two-letter state codes, study and employment status, home ownership, and homeowner permission. Age and income support `eq`, `atLeast`, and `atMost`. The remaining attributes use `eq`. Record verification must come from checked source evidence. [Eligibility schema](api/src/modules/matching/criteria.js)
 
 ## Accounts on Windows
 
@@ -172,6 +172,42 @@ npm.cmd run benchmark -- 50000
 ```
 
 The runner creates a temporary standalone MongoDB process with a dedicated `benefitbridge_loadtest` database. Synthetic benchmark approval is enabled only in that database. The workload uses the same ranked list and count queries as the catalogue. It reports search percentiles, failures, index plans, ingestion and incremental throughput, database size, and hardware. See the [measured benchmark report](docs/M5_BENCHMARK.md).
+
+## M6 eligibility extraction
+
+### Windows demo
+
+1. Start MongoDB, `npm.cmd run demo:api`, and `npm.cmd run demo:web`. Register or sign in with a demo account. Grant the demo account administrator access if needed.
+
+   ```powershell
+   npm.cmd run sync:demo -- grant-admin reviewer@example.test
+   $env:DEMO_AI_EXTRACTION_PROVIDER = 'mock'
+   $env:DEMO_INGEST_SOURCE_FILE = (Resolve-Path .\api\test\fixtures\synthetic\extraction-snapshot.json).Path
+   npm.cmd run sync:demo -- snapshot
+   ```
+
+2. Open [Catalogue administration](http://127.0.0.1:5174/admin) and reload if you just changed the account role. Select `m6-learning-award` and open **Source text and provenance** in **AI eligibility review**.
+3. Inspect the condition quotes and optional questions. Edit the draft JSON or choose alternate wording for a question, then select **Validate edited proposal**. A changed threshold with the original quote will fail the evidence check. Add a reason and select **Approve proposal and queue publication**. If a proposal would replace existing verified or source-supplied criteria, explicitly confirm that replacement.
+4. Run `npm.cmd run sync:demo -- once` in the same terminal. Search for **M6 Fictional Learning Award**, open personalization, and try age **21**, annual income **200000**, currently studying **Yes**, and state code **MH**. Try leaving one answer blank, or raise income above **250000** to see the other outcomes.
+
+**Reject AI proposal** records the rejection with the reviewer and reason and leaves the published version in place. A separate M5 source decision can publish catalogue facts independently. Where an approved source change makes a prior rule's quoted text obsolete, a source-only publication falls back to informational eligibility. Catalogue-only updates keep a previously approved AI rule and its provenance when its quoted source field and reference are still present. Pending source disputes retain M5's existing suppression of uncertain matching.
+
+### Provider, evidence and cost
+
+- The worker reads `AI_EXTRACTION_PROVIDER=off|mock` for regular development and `DEMO_AI_EXTRACTION_PROVIDER=off|mock` for the isolated demo. The default is `off`. The mock is a local deterministic implementation and has no service fees. The project has no hosted adapter configured. A future provider must implement the bounded `extract({ text, signal })` contract and keep credentials in ignored server-side environment files. Use of a hosted endpoint would depend on its pricing and approval to send the source text.
+- The worker queues extraction for a staged source change and reuses results by source record, source-text hash, provider version and validation version. The adapter receives only the retained eligibility text or, when absent, the retained description. The job records its timestamps, status and retry attempts. AI work runs after the sync pass, so retries and provider failures do not roll back the ingestion checkpoint.
+- The server checks the structured proposal, verifies exact source quotes and their meaning under the supported English grammar, compares mandatory conditions and alternatives with the retained source, and flags missing, unsupported, ambiguous, contradictory or instruction-like text. Ambiguous and unsupported wording requires manual interpretation. The review editor can repair a provider draft using supported evidence and can choose vetted alternate question wording. Cases that still have warnings can use the ordinary source-review workflow.
+- The existing review authorization and origin checks protect the extraction endpoints. Human approval attaches the exact validated rule, per-condition evidence, and reviewer decision to publication. The immutable rule lives in `scheme_rule_versions` and the proposal in `eligibility_extractions`. Search and personalization use the published rule with the deterministic matcher, including the same three outcomes.
+
+### Evaluation
+
+```powershell
+npm.cmd run evaluate:extraction
+npm.cmd test
+npm.cmd run build
+```
+
+Evaluation uses a dedicated set of original fictional examples and the local provider. The [measured M6 evaluation](docs/M6_EVALUATION.md) describes accuracy, refusal outcomes, latency and limitations.
 
 ## Checks
 

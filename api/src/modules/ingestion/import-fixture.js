@@ -2,12 +2,12 @@ import { createHash } from 'node:crypto';
 import { parseFixture } from './file-adapter.js';
 import { queuePublication } from '../notifications/events.js';
 
-export async function attachEligibility(SchemeRuleVersion, schemeId, schemeVersionId, rule, externalRecordId) {
+export async function attachEligibility(SchemeRuleVersion, schemeId, schemeVersionId, rule, externalRecordId, extractionProvenance) {
   if (!rule) return;
 
   const existing = await SchemeRuleVersion.findOneAndUpdate(
     { schemeId, schemeVersionId },
-    { $setOnInsert: { rule } },
+    { $setOnInsert: { rule, ...(extractionProvenance && { extractionProvenance }) } },
     { upsert: true, new: true, runValidators: true },
   ).lean();
   if (JSON.stringify(existing.rule) !== JSON.stringify(rule)) {

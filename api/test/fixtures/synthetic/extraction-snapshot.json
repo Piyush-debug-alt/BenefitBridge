@@ -1,0 +1,34 @@
+{
+  "dataset": "synthetic",
+  "source": {
+    "id": "m6-extraction-demo",
+    "name": "Fictional eligibility extraction source",
+    "baseUrl": "https://extraction.example.invalid",
+    "accessPermissions": "Original fictional material authored for the BenefitBridge demo.",
+    "retentionPolicy": "reference_only"
+  },
+  "retrievedAt": "2026-10-30T00:00:00Z",
+  "records": [
+    {
+      "externalRecordId": "m6-learning-award",
+      "canonicalName": "M6 Fictional Learning Award",
+      "description": "Fictional education award used in the reviewed extraction demo.",
+      "categoryIds": [
+        "Education"
+      ],
+      "governmentLevel": "central",
+      "issuer": "Fictional Education Issuer",
+      "nationwide": true,
+      "lifecycleStatus": "active",
+      "verificationStatus": "verified",
+      "sourceRefs": [
+        {
+          "label": "Fictional award source",
+          "url": "https://extraction.example.invalid/learning-award"
+        }
+      ],
+      "eligibilityText": "Eligibility: age between 18 and 25 and currently studying and annual income at most INR 2,50,000 and reside in MH.",
+      "lastVerifiedAt": "2026-10-30T00:00:00Z"
+    }
+  ]
+}

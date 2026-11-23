@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { FeedError, pageSchema, withRetry } from './adapters.js';
 import { decideReview, processReviewedChanges, publishReview } from './publication.js';
 import { reconcileMissing, stageRecord } from './staging.js';
+import { enqueueExtraction } from '../extraction/worker.js';
 
 const leaseMs = 180_000;
 const maxJobAttempts = 4;
@@ -45,6 +46,9 @@ async function runFeed(models, job, adapter, heartbeat, options) {
       const outcomes = await finishBatch(page.records.slice(start, start + 16).map(item =>
         stageRecord(models, job, adapter.metadata, item)));
       for (const result of outcomes) stats[result.kind]++;
+      if (options.extractionProvider) {
+        await finishBatch(outcomes.map(result => enqueueExtraction(models, result.review, options.extractionProvider)));
+      }
       if (options.autoPublish) {
         await finishBatch(outcomes.filter(result => result.review?.status === 'pending' && result.kind === 'staged')
           .map(async result => {

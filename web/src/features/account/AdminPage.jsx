@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from './AuthProvider.jsx';
 import { useAccountResource } from './useAccountResource.js';
+import { ExtractionReview } from './ExtractionReview.jsx';
 
 function Results({ resource, children }) {
   if (resource.pending) return <p role="status">Loading…</p>;
@@ -37,11 +38,18 @@ function Review({ id, refresh }) {
       <details><summary>Evidence and previous version</summary>
         <pre className="admin-evidence">{JSON.stringify(data, null, 2)}</pre>
       </details>
+      {data.review.extractionId && <ExtractionReview reviewId={id} reviewStatus={data.review.status} onDecision={() => {
+        detail.retry();
+        refresh();
+      }} />}
       {message && <p role={message.error ? 'alert' : 'status'}>{message.text}</p>}
       {['pending', 'deferred'].includes(data.review.status) && (
         <form className="account-form" onSubmit={submit}>
           <label>Decision <select name="action" className="question-input">
-            {data.review.normalization && <option value="approve">Approve publication</option>}
+            {data.review.normalization && <option value="approve">
+              {data.review.extractionDecision?.status === 'approved' ? 'Retry approved publication'
+                : data.review.extractionId ? 'Approve source without using the AI proposal' : 'Approve publication'}
+            </option>}
             <option value="defer">Defer</option><option value="reject">Reject</option>
           </select></label>
           <label>Evidence or reason <textarea name="reason" className="question-input" required minLength={3} maxLength={500} /></label>

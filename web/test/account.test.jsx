@@ -215,3 +215,53 @@ it('lets an administrator inspect the source and queue a review decision', async
   await user.click(screen.getByRole('button', { name: 'Save decision' }));
   await screen.findByText(/Decision saved/);
 });
+
+it('lets an administrator edit, validate, and submit an evidence-backed proposal', async () => {
+  const caseId = 'record-id';
+  const source = 'Eligibility: age at least 18.';
+  const condition = { attribute: 'age', operator: 'atLeast', value: 18, quote: 'age at least 18' };
+  const proposal = { paths: [[condition]] };
+  const review = { _id: caseId, extractionId: 'extraction-run', externalRecordId: 'extraction-record',
+    kind: 'candidate', status: 'pending', changedFields: ['eligibility'], normalization: { record: {} } };
+  const preview = { valid: true, proposal, evidence: [[condition]], warnings: [], questions: [{
+    id: 'age', label: 'What is your age in years?',
+    wording: { standard: 'What is your age in years?', alternate: 'How old are you in years?' },
+  }] };
+  let decision;
+  const api = vi.fn(async (url, { method, body }) => {
+    if (url.endsWith('/me')) return response({ user: { ...signedInUser, isAdministrator: true } });
+    if (url.endsWith('/admin/sources')) return response({ sources: [] });
+    if (url.endsWith('/admin/sync-jobs')) return response({ items: [] });
+    if (url.includes('/admin/reviews?')) return response({ items: [review] });
+    if (url.endsWith('/extraction/validate')) {
+      expect(method).toBe('POST');
+      expect(JSON.parse(body)).toEqual({ proposal, questionWording: { age: 'alternate' } });
+      return response({ ...preview, questions: [{ ...preview.questions[0], label: 'How old are you in years?' }] });
+    }
+    if (url.endsWith('/extraction/decision')) {
+      expect(JSON.parse(body)).toEqual({ action: 'approve', reason: 'Verified cited evidence',
+        proposal, questionWording: { age: 'alternate' }, replaceExistingRule: false });
+      decision = { status: 'approved', reason: 'Verified cited evidence' };
+      return response({ status: 'approved' });
+    }
+    if (url.endsWith('/extraction')) return response({ decision, preview, extraction: {
+      provider: 'mock', providerVersion: 'v1', status: 'ready', input: { text: source, field: 'eligibilityText',
+        url: 'https://extraction.example.invalid/award' }, result: { proposal },
+    } });
+    return response({ review });
+  });
+  vi.stubGlobal('fetch', api);
+  const user = renderApp('/admin');
+  await user.click(await screen.findByRole('button', { name: /extraction-record/ }));
+  await user.click(await screen.findByText('Source text and provenance'));
+  expect(screen.getByText(source)).toBeTruthy();
+  const editor = screen.getByLabelText('Edit proposed conditions and quotes');
+  await user.clear(editor);
+  await user.paste(JSON.stringify(proposal));
+  await user.selectOptions(screen.getByLabelText('Wording for age'), 'alternate');
+  await user.click(screen.getByRole('button', { name: 'Validate edited proposal' }));
+  await screen.findByText('How old are you in years?', { selector: 'li' });
+  await user.type(screen.getByLabelText('Extraction decision reason'), 'Verified cited evidence');
+  await user.click(screen.getByRole('button', { name: 'Approve proposal and queue publication' }));
+  await screen.findByText(/AI proposal approved/);
+});
