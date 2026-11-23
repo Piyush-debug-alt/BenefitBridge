@@ -57,7 +57,11 @@ export function questionsFor(entries) {
     }
   }
 
-  return Object.entries(attributes).filter(([id]) => used.has(id)).map(([id, { label, type, min, max }]) => ({
+  return questionDefinitions().filter(({ id }) => used.has(id));
+}
+
+export function questionDefinitions() {
+  return Object.entries(attributes).map(([id, { label, type, min, max }]) => ({
     id, label, type, ...(type === 'integer' ? { min, max } : {}),
   }));
 }

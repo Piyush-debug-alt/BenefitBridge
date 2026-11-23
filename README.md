@@ -1,6 +1,6 @@
 # BenefitBridge
 
-BenefitBridge is an independent, guest-first catalogue for discovering government scheme information. It provides search, filters, pagination, scheme details, and optional anonymous matching. The product requirements and system design are in [docs](docs/).
+BenefitBridge is an independent, guest-first catalogue for discovering government scheme information. It provides search, optional anonymous matching, and accounts with saved questionnaire profiles and bookmarks. The product requirements and system design are in [docs](docs/).
 
 ## Run locally
 
@@ -60,11 +60,45 @@ The importer stages an evidence reference and writes one immutable initial versi
 - Answers live in React memory for the current tab and travel in the JSON body of the evaluation request. The server uses them in memory and returns a response with caching disabled. Resetting or reloading clears them.
 - The optional fixture `eligibility` object supports `status: "verified"`, `evidenceUrl` from the record’s `sourceRefs`, `pathsExhaustive`, and `paths`. Each pathway declares `complete` and an array of conditions with `attribute`, `operator`, and `value`. Supported attributes are `age`, `currentlyStudying`, `ownsHome`, and `hasOwnerPermission`. Boolean conditions use `eq`. Integer age can also use `atLeast` and `atMost`. Record verification must come from checked source evidence. [Eligibility schema](api/src/modules/matching/criteria.js)
 
+## Accounts on Windows
+
+With MongoDB running, install dependencies and seed the demo from the repository root:
+
+```powershell
+npm.cmd ci
+npm.cmd run seed:demo
+```
+
+Run `npm.cmd run demo:api` and `npm.cmd run demo:web` in separate terminals. Open [the demo account page](http://127.0.0.1:5174/account), create a test account with a password of at least 12 characters, and sign in. Open a scheme detail and select **Bookmark scheme**. The **Account** page lists bookmarks and lets you remove them. Enter profile answers, check the consent box, and select **Save profile**. **Use saved answers in search** explicitly applies the saved values to the current tab. Regular development uses `npm.cmd run dev:api` and `npm.cmd run dev:web` with [the regular account page](http://127.0.0.1:5173/account).
+
+### Google sign-in
+
+1. In a Google Cloud project, open **Google Auth Platform**. Configure **Branding** with the app name and support email. Select the appropriate **Audience** and, if using External testing, add the Google accounts that will test the app.
+2. Under **Clients**, create an OAuth client with type **Web application**. Add the exact URI for the environment you are configuring to **Authorized redirect URIs**.
+
+   | Environment | Authorized redirect URI |
+   | --- | --- |
+   | Regular development | `http://127.0.0.1:5173/api/v1/auth/google/callback` |
+   | Synthetic demo | `http://127.0.0.1:5174/api/v1/auth/google/callback` |
+
+3. For regular development, run `Copy-Item api/.env.example api/.env` if the destination is absent. Enter the ID and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. For the demo, copy `api/.env.demo.example` to `api/.env.demo` and set `DEMO_GOOGLE_CLIENT_ID` and `DEMO_GOOGLE_CLIENT_SECRET`. These files are ignored by Git.
+4. Restart the API and open the account page on the same host and port as the configured redirect URI. Select **Continue with Google**. An existing password account keeps its original sign-in method even if Google returns the same email. [Google Auth Platform setup](https://support.google.com/cloud/answer/15544987) · [Google OpenID Connect web server flow](https://developers.google.com/identity/openid-connect/openid-connect)
+
+### Email verification and password recovery
+
+Loopback development without SMTP supports local test registration and displays those accounts as unverified. To exercise verification and recovery, start a local SMTP test inbox, set `SMTP_URL=smtp://127.0.0.1:1025` and `MAIL_FROM=noreply@example.test` in `api/.env`, or use the corresponding `DEMO_` settings in `api/.env.demo`. Restart the API. Register, then open the verification link from the inbox. Use **Forgot password?** on the sign-in screen to test recovery. Existing unverified local accounts can use **Resend verification email** once SMTP is configured. A non-loopback SMTP server uses TLS.
+
+### Sessions and consent
+
+The browser receives a random session ID in an HttpOnly cookie. MongoDB stores its hash and a seven-day expiry. The API checks the session and derives the owner for all profile and bookmark operations. Sign-in rotates the session, logout revokes it, and password reset invalidates every previous session for that account. Account writes require the configured same-origin frontend. HTTPS origins use Secure host-only cookies. Local loopback HTTP is for development.
+
+Saving a profile requires an explicit consent checkbox and an account request. Copying current answers into the profile form leaves them as a draft until saved. Signing out clears questionnaire answers in the current tab. Account and profile data live in the selected MongoDB database, so configure database access controls, encrypted storage and backups for a public deployment. Rate limiting is currently per API process. Deploy with an HTTPS reverse proxy and keep API and frontend on one origin.
+
 ## Checks
 
 ```sh
-npm test
-npm run build
+npm.cmd test
+npm.cmd run build
 ```
 
 API integration tests start a temporary MongoDB instance. On the first run they download a MongoDB binary into the ignored `.local/mongodb` cache. To use an existing local binary, set `MONGOMS_SYSTEM_BINARY` to the full path to `mongod` or `mongod.exe`. The web tests use a simulated DOM. The production frontend build is written to `web/dist`. Hosting it requires SPA route fallback and an API proxy on the same origin.
@@ -77,3 +111,5 @@ API integration tests start a temporary MongoDB instance. On the first run they 
 - `GET /api/v1/schemes/:schemeId` returns scheme details and source provenance.
 - `GET /api/v1/questions?schemeIds=id1,id2` selects applicable verified questions for up to 50 published schemes.
 - `POST /api/v1/matches/evaluate` accepts JSON with `schemeIds` and an `answers` object. It returns ranked outcomes and condition explanations without storing the answers.
+- `/api/v1/auth` provides password registration, login, logout, Google sign-in, email verification, and password reset.
+- `GET /api/v1/me`, `GET/PUT/DELETE /api/v1/me/profile`, and the `/api/v1/me/bookmarks` list, create, lookup and delete routes require a valid session.

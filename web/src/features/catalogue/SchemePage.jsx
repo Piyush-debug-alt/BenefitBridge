@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router';
 import { dataset, readCatalogue } from './client.js';
 import { formatDate, SchemeStatuses, scope } from './presentation.jsx';
+import { BookmarkButton } from '../account/BookmarkButton.jsx';
 
 function DetailList({ values, fallback }) {
   return values.length
@@ -40,6 +41,7 @@ export function SchemePage() {
         <h1>{item.canonicalName}</h1>
         <SchemeStatuses scheme={item} />
         <p>{item.description}</p>
+        <BookmarkButton schemeId={item._id} />
       </header>
       <div className="detail-grid">
         <div className="detail-content">

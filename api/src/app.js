@@ -4,8 +4,10 @@ import { rateLimit } from 'express-rate-limit';
 import { handleError, HttpError, notFound, requestId } from './middleware/http.js';
 import { catalogueRouter } from './modules/catalogue/routes.js';
 import { matchingRouter } from './modules/matching/routes.js';
+import { readAuthConfig } from './modules/auth/config.js';
+import { accountRouter } from './modules/auth/routes.js';
 
-export function createApp({ models, dataset, isReady }) {
+export function createApp({ models, dataset, isReady, auth = readAuthConfig({}, dataset), services }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(requestId, helmet());
@@ -24,9 +26,10 @@ export function createApp({ models, dataset, isReady }) {
 
   app.use('/api/v1', (_req, res, next) => {
     res.set('Cache-Control', 'no-store');
+    res.set('X-BenefitBridge-Dataset', dataset);
     if (!isReady()) return next(new HttpError(503, 'DATABASE_UNAVAILABLE', 'The catalogue database is unavailable.'));
     next();
-  }, catalogueRouter(models.Scheme, dataset), matchingRouter(models, dataset));
+  }, catalogueRouter(models.Scheme, dataset), matchingRouter(models, dataset), accountRouter(models, dataset, auth, services));
 
   app.use(notFound, handleError);
   return app;

@@ -28,6 +28,7 @@ a, button, input, select { outline-offset: 4px; }
 .brand-mark { width: 2rem; height: 2rem; display: flex; justify-content: center; align-items: center; gap: .17rem; padding-inline: .4rem; border-radius: .55rem; background: #17584e; }
 .brand-mark span { width: .45rem; height: .95rem; transform: skew(-20deg); border: 2px solid #d6f5df; border-radius: .3rem; }
 .brand-mark span:first-child { height: .66rem; margin-top: .29rem; }
+.header-inner nav { display: flex; flex-wrap: wrap; gap: .55rem 1.15rem; }
 .header-inner nav a { color: var(--teal); font-weight: 650; font-size: .925rem; }
 .header-inner nav a:hover { text-decoration: underline; }
 .demo-banner { padding: .72rem 0; font-size: .92rem; color: #533511; background: #fff0cc; border-bottom: 1px solid #ebd8a4; }
@@ -118,9 +119,29 @@ a, button, input, select { outline-offset: 4px; }
 .match-NEEDS_INFO { background: #f8edcd; color: #593d14; }
 .match-KNOWN_UNMET { background: #f0e6e3; color: #713a31; }
 
+.account-shell h1 { margin-bottom: 1rem; }
+.account-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .75rem; margin-bottom: 1.25rem; }
+.account-heading h1 { margin-bottom: .3rem; }
+.account-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1rem; }
+.account-panel { display: grid; gap: .85rem; max-width: 36rem; padding: clamp(1rem, 4vw, 1.6rem); border: 1px solid var(--line); border-radius: .85rem; background: white; }
+.account-panel h2 { font-size: 1.3rem; font-weight: 700; }
+.account-panel [role="alert"], .account-error { color: #842f2d; }
+.account-form { display: grid; gap: .85rem; }
+.account-form input:not([type="checkbox"]) { display: block; }
+.account-form > label { font-weight: 640; }
+.account-form > label .question-input { margin-top: .25rem; }
+.account-form > .primary-button, .account-panel > .text-link { justify-self: start; }
+.account-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem 1rem; }
+.account-error { margin-top: 1rem; }
+.consent-check { display: flex; align-items: baseline; gap: .55rem; }
+.consent-check input { accent-color: var(--teal); }
+.bookmark-list { display: grid; gap: .75rem; }
+.bookmark-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.bookmark-actions { margin-top: 1rem; }
+
 @media (max-width: 45rem) {
   .shell { width: calc(100% - 1.75rem); }
-  .catalogue-layout, .detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .catalogue-layout, .detail-grid, .account-grid { grid-template-columns: minmax(0, 1fr); }
   .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filter-heading, .filter-hint { grid-column: 1 / -1; }
   .personalize-actions { grid-column: 1 / -1; }

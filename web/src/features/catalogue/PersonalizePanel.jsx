@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
 
-function Question({ question, answer }) {
+export function Question({ question, answer }) {
   const id = useId();
   return (
     <div className="filter-field">
@@ -19,6 +19,18 @@ function Question({ question, answer }) {
       )}
     </div>
   );
+}
+
+export function readAnswers(form, questions) {
+  const values = new FormData(form);
+  const answers = {};
+  for (const question of questions) {
+    const value = values.get(question.id);
+    if (value !== '' && value !== null) {
+      answers[question.id] = question.type === 'boolean' ? value === 'true' : Number(value);
+    }
+  }
+  return answers;
 }
 
 export function PersonalizePanel({ questions, answers, onApply, onClose }) {
@@ -43,16 +55,9 @@ export function PersonalizePanel({ questions, answers, onApply, onClose }) {
 
   function submit(event) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
     const next = { ...answers };
-    for (const question of questions.data.questions) {
-      const value = form.get(question.id);
-      delete next[question.id];
-      if (value !== '' && value !== null) {
-        next[question.id] = question.type === 'boolean' ? value === 'true' : Number(value);
-      }
-    }
-    onApply(next);
+    for (const { id } of questions.data.questions) delete next[id];
+    onApply({ ...next, ...readAnswers(event.currentTarget, questions.data.questions) });
     close();
   }
 

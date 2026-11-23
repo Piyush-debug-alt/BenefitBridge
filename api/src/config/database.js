@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { createCatalogueModels } from '../modules/catalogue/models.js';
 import { createIngestionModels } from '../modules/ingestion/models.js';
 import { createMatchingModels } from '../modules/matching/model.js';
+import { createAccountModels } from '../modules/auth/models.js';
 
 export async function connectDatabase(config) {
   const connection = mongoose.createConnection(config.uri, {
@@ -16,6 +17,7 @@ export async function connectDatabase(config) {
       ...createCatalogueModels(connection),
       ...createIngestionModels(connection),
       ...createMatchingModels(connection),
+      ...createAccountModels(connection),
     };
     await Promise.all(Object.values(models).map(model => model.createIndexes()));
     return { connection, models };
