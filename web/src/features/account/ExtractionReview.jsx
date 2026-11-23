@@ -40,7 +40,7 @@ function Preview({ value }) {
   const issues = value.outputDiagnostic?.issues ?? value.validationIssues ?? [];
   return (
     <>
-      <p role="status">{value.valid ? 'Evidence checks passed. Reviewer approval is still required.' : 'This draft needs review before approval.'}</p>
+      <p className={value.valid ? 'personalization-note' : 'notice'} role="status">{value.valid ? 'Evidence checks passed. Reviewer approval is still required.' : 'This draft needs review before approval.'}</p>
       {value.outputDiagnostic && <p>
         {value.outputDiagnostic.stage.replaceAll('_', ' ')}
         {value.outputDiagnostic.finishReason && ' · ' + value.outputDiagnostic.finishReason}

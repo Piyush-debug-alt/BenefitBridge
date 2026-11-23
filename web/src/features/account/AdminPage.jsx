@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider.jsx';
 import { useAccountResource } from './useAccountResource.js';
 import { ExtractionReview } from './ExtractionReview.jsx';
 
 function Results({ resource, children }) {
   if (resource.pending) return <p role="status">Loading…</p>;
-  if (resource.error) return <p role="alert">{resource.error.message}</p>;
+  if (resource.error) return <div role="alert"><p>{resource.error.message}</p>
+    <button className="text-link" type="button" onClick={resource.retry}>Retry</button></div>;
   return children(resource.data);
 }
 
@@ -14,6 +15,8 @@ function Review({ id, refresh }) {
   const detail = useAccountResource('/admin/reviews/' + id);
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
+  const heading = useRef(null);
+  useEffect(() => { heading.current?.focus(); }, []);
   async function submit(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -31,12 +34,14 @@ function Review({ id, refresh }) {
       setBusy(false);
     }
   }
-  return <Results resource={detail}>{data => (
-    <>
-      <p>{data.review.status} · {data.review.changedFields.join(', ') || data.review.errorCode}</p>
+  return <section className="review-detail" aria-label="Selected case">
+    <h3 ref={heading} tabIndex={-1}>Case review</h3>
+    <Results resource={detail}>{data => <>
+      <div className="account-actions"><span className="status">{data.review.status}</span>
+        <p className="muted">{data.review.changedFields.join(', ') || data.review.errorCode}</p></div>
       {data.review.publicationError && <p role="alert">{data.review.publicationError}</p>}
       <details><summary>Evidence and previous version</summary>
-        <pre className="admin-evidence">{JSON.stringify(data, null, 2)}</pre>
+        <pre className="admin-evidence" tabIndex={0} aria-label="Evidence data">{JSON.stringify(data, null, 2)}</pre>
       </details>
       {data.review.extractionId && <ExtractionReview reviewId={id} reviewStatus={data.review.status} onDecision={() => {
         detail.retry();
@@ -56,8 +61,8 @@ function Review({ id, refresh }) {
           <button className="primary-button" type="submit" disabled={busy}>Save decision</button>
         </form>
       )}
-    </>
-  )}</Results>;
+    </>}</Results>
+  </section>;
 }
 
 function AdminTools() {
@@ -81,25 +86,29 @@ function AdminTools() {
     <>
       <button className="secondary-button" onClick={() => { sources.retry(); jobs.retry(); reviews.retry(); }}>Refresh administration</button>
       <div className="account-grid admin-grid">
-        <section className="account-panel"><h2>Sources and synchronization</h2>
+        <section className="account-panel" aria-labelledby="sync-heading"><h2 id="sync-heading">Sources and synchronization</h2>
           {message && <p role={message.error ? 'alert' : 'status'}>{message.text}</p>}
-          <Results resource={sources}>{data => data.sources.map(source => (
-            <div className="account-actions" key={source._id}>
+          <Results resource={sources}>{data => data.sources.length ? data.sources.map(source => (
+            <div className="admin-entry" key={source._id}>
               <strong>{source._id}</strong>
-              <button className="secondary-button" onClick={() => enqueue(source._id, 'snapshot')}>Queue snapshot</button>
-              {source.capabilities.incremental && (
-                <button className="secondary-button" onClick={() => enqueue(source._id, 'incremental')}>Queue incremental</button>
-              )}
+              <div className="account-actions">
+                <button className="secondary-button" onClick={() => enqueue(source._id, 'snapshot')}>Queue snapshot</button>
+                {source.capabilities.incremental && (
+                  <button className="secondary-button" onClick={() => enqueue(source._id, 'incremental')}>Queue incremental</button>
+                )}
+              </div>
             </div>
-          ))}</Results>
-          <Results resource={jobs}>{data => <ul className="notification-list">{data.items.map(job => (
-            <li key={job._id}>{job.sourceId} · {job.mode} · {job.status} · Attempts {job.attempts}
+          )) : <p className="muted">No configured sources.</p>}</Results>
+          <h3 className="font-semibold">Recent synchronization jobs</h3>
+          <Results resource={jobs}>{data => data.items.length ? <ul className="notification-list">{data.items.map(job => (
+            <li key={job._id}><div className="account-actions"><strong>{job.sourceId}</strong><span className="status">{job.status}</span></div>
+              <p className="muted">{job.mode} · Attempts {job.attempts}</p>
               {job.errorCode && <p>{job.errorCode}</p>}
               {job.stats && <p>{job.stats.records} records · {job.stats.invalid} invalid · {job.stats.missing} missing</p>}
             </li>
-          ))}</ul>}</Results>
+          ))}</ul> : <p className="muted">No synchronization jobs yet.</p>}</Results>
         </section>
-        <section className="account-panel"><h2>Review queue</h2>
+        <section className="account-panel" aria-labelledby="queue-heading"><h2 id="queue-heading">Review queue</h2>
           <label>Status <select className="question-input" value={status} onChange={event => {
             setStatus(event.target.value); setPage(1); setId(null);
           }}>
@@ -111,8 +120,8 @@ function AdminTools() {
           <Results resource={reviews}>{data => (
             <>
               {data.items.length === 0 && <p>No cases on this page.</p>}
-              <ul className="notification-list">{data.items.map(review => <li key={review._id}>
-                <button className="text-link" onClick={() => setId(review._id)}>
+              <ul className="notification-list review-actions">{data.items.map(review => <li key={review._id} data-active={id === review._id}>
+                <button className="text-link" type="button" aria-pressed={id === review._id} onClick={() => setId(review._id)}>
                   {review.externalRecordId} · {review.kind} · {review.status}
                 </button>
               </li>)}</ul>
@@ -132,7 +141,8 @@ function AdminTools() {
 export function AdminPage() {
   const { user, pending } = useAuth();
   return <section className="shell detail-shell account-shell">
-    <h1>Catalogue administration</h1>
+    <header className="account-heading"><div><h1>Catalogue administration</h1>
+      <p>Manage source imports and review evidence before publication.</p></div></header>
     {pending ? <p role="status">Checking access…</p> : user?.isAdministrator
       ? <AdminTools key={user.id} /> : <p>Administrator access is required.</p>}
   </section>;

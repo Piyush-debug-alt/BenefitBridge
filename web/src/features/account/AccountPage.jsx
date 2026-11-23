@@ -78,7 +78,7 @@ function ProfilePanel({ answers, useAnswers }) {
 
   return (
     <section className="account-panel" aria-labelledby="profile-heading">
-      <h2 id="profile-heading">Questionnaire profile</h2>
+      <div><h2 id="profile-heading">Questionnaire profile</h2><p className="muted">Save answers with your consent so you can reuse them in search.</p></div>
       <ResourceStatus resource={profileResource} label="profile" />
       {error && <p role="alert">{error.message}</p>}
       {message && <p role="status">{message}</p>}
@@ -147,7 +147,7 @@ function BookmarksPanel() {
       <h2 id="bookmarks-heading">Bookmarks</h2>
       <ResourceStatus resource={list} label="bookmarks" />
       {error && <p role="alert">{error.message}</p>}
-      {list.data?.items.length === 0 && <p>No bookmarks on this page.</p>}
+      {list.data?.items.length === 0 && <p className="muted">No bookmarks on this page.</p>}
       {list.data?.items.length > 0 && (
         <ul className="bookmark-list">
           {list.data.items.map(({ schemeId, name }) => (
@@ -204,10 +204,10 @@ export function AccountPage({ answers, setAnswers }) {
 
   return (
     <section className="shell detail-shell account-shell" key={user.id}>
-      <div className="account-heading">
-        <div><h1>Your account</h1><p>{user.email}{!user.emailVerified && ' · Email unverified'}</p></div>
+      <header className="account-heading">
+        <div><h1>Your account</h1><p>{user.email}</p>{!user.emailVerified && <span className="status status-unverified">Email unverified</span>}</div>
         <button className="secondary-button" type="button" disabled={busy} onClick={signOut}>Sign out</button>
-      </div>
+      </header>
       {logoutError && <p role="alert">{logoutError.message}</p>}
       <div className="account-grid">
         <ProfilePanel answers={answers} useAnswers={values => { setAnswers(values); navigate('/'); }} />

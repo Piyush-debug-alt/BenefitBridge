@@ -93,12 +93,12 @@ function Inbox() {
       </div>
       <Status resource={resource} label="notifications" />
       {error && <p role="alert">{error.message}</p>}
-      {data && <p role="status">{data.unread} unread</p>}
-      {data?.items.length === 0 && <p>No notifications yet.</p>}
+      {data && <p role="status"><span className="status">{data.unread} unread</span></p>}
+      {data?.items.length === 0 && <p className="muted">No notifications yet.</p>}
       {data?.items.length > 0 && (
         <ul className="notification-list">
           {data.items.map(item => (
-            <li key={item._id}>
+            <li key={item._id} className={item.readAt ? undefined : 'is-unread'}>
               <p className="notification-title">{item.type === 'bookmark_update' ? 'Verified scheme update' : 'Potential profile match'}</p>
               <Link className="text-link" to={'/schemes/' + item.schemeId}>{item.schemeName}</Link>
               <p className="muted">{formatDate(item.createdAt)} · {item.readAt ? 'Read' : 'Unread'}</p>
@@ -123,7 +123,7 @@ export function NotificationsPage() {
   const { user, pending } = useAuth();
   return (
     <section className="shell detail-shell account-shell" key={user?.id}>
-      <h1>Notifications</h1>
+      <header className="account-heading"><div><h1>Notifications</h1><p>Scheme updates and potential matches for your saved profile.</p></div></header>
       {pending && <p role="status">Checking your session…</p>}
       {!pending && !user && <Link className="text-link" to="/account">Sign in to view notifications</Link>}
       {user && <div className="account-grid"><Inbox /><Preferences /></div>}

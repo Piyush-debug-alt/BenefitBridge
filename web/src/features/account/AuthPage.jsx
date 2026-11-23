@@ -68,8 +68,11 @@ export function AuthPage({ mode, googleStatus }) {
   const askEmail = !requiresToken;
   const askPassword = ['login', 'register', 'reset'].includes(mode);
   return (
-    <section className="shell detail-shell account-shell">
-      <h1>{titles[mode]}</h1>
+    <section className="shell detail-shell account-shell auth-shell">
+      <header className="auth-intro">
+        <h1>{titles[mode]}</h1>
+        {['login', 'register'].includes(mode) && <p>Save schemes, manage your eligibility profile, and choose which updates to receive.</p>}
+      </header>
       <div className="account-panel">
         {Object.hasOwn(googleMessages, googleStatus) && <p role="alert">{googleMessages[googleStatus]}</p>}
         {error && <p role="alert">{error.message}</p>}
@@ -93,7 +96,7 @@ export function AuthPage({ mode, googleStatus }) {
             {busy ? 'Working…' : titles[mode]}
           </button>
         </form>
-        <div className="account-actions">
+        <div className="account-actions auth-links">
           {mode === 'login' && options?.googleEnabled && <a className="secondary-button" href="/api/v1/auth/google/start">Continue with Google</a>}
           {mode === 'login'
             ? <Link className="text-link" to="/account?mode=register">Create an account</Link>

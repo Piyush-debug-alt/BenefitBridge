@@ -48,6 +48,7 @@ it('submits a goal search, opens the detail page, and returns to the search', as
   const user = renderApp();
   await user.type(screen.getByRole('searchbox', { name: 'Search schemes' }), 'solar');
   await user.click(screen.getByRole('button', { name: 'Search' }));
+  expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Explore schemes' }));
   const state = await screen.findByRole('combobox', { name: 'State or territory' });
   await user.selectOptions(state, 'MH');
   await user.click(await screen.findByRole('link', { name: 'Test result' }));
@@ -110,6 +111,39 @@ const second = { ...item, _id: '000000000000000000000002', canonicalName: 'Secon
 const third = { ...item, _id: '000000000000000000000003', canonicalName: 'Third result' };
 const criteria = [{ status: 'PASS', conditions: [{ label: 'Currently studying: yes', status: 'PASS' }] }];
 const cardHeadings = () => screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent);
+
+it('formats income and shows questionnaire progress while submitting unchanged API values', async () => {
+  enableDialogInDom();
+  const region = { id: 'residentState', label: 'Where do you live?', type: 'state' };
+  const income = { id: 'annualIncome', label: 'What is your annual income?', type: 'integer', min: 0, max: 1_000_000_000 };
+  const evaluate = vi.fn();
+  vi.stubGlobal('fetch', vi.fn(async (url, options) => {
+    if (url.includes('/questions?')) return json({ dataset: 'authorized', questions: [region, income, question] });
+    if (url.endsWith('/matches/evaluate')) {
+      evaluate(JSON.parse(options.body));
+      return json({ dataset: 'authorized', results: [{ schemeId: item._id, outcome: 'POTENTIAL_MATCH', paths: [] }] });
+    }
+    if (url.endsWith('/facets')) return json({ dataset: 'authorized' });
+    return json({ dataset: 'authorized', items: [item], pagination: { page: 1, total: 1, totalPages: 1 } });
+  }));
+
+  const user = renderApp();
+  await screen.findByRole('link', { name: item.canonicalName });
+  await user.click(screen.getByRole('button', { name: 'Personalize Results' }));
+  const dialog = within(screen.getByRole('dialog'));
+  const field = await dialog.findByRole('textbox', { name: income.label });
+  expect(dialog.getByRole('progressbar', { name: 'Questions answered' }).value).toBe(0);
+  await user.type(field, '250000');
+  await user.tab();
+  expect(field.value).toBe('2,50,000');
+  await user.selectOptions(dialog.getByRole('combobox', { name: region.label }), 'MH');
+  expect(dialog.getByText('2 of 3 answered')).toBeTruthy();
+  await user.click(dialog.getByRole('button', { name: 'Apply personalization' }));
+  await waitFor(() => expect(evaluate).toHaveBeenCalledWith({
+    schemeIds: [item._id], answers: { residentState: 'MH', annualIncome: 250000 },
+  }));
+  expect(await screen.findByText('Potential match')).toBeTruthy();
+});
 
 it('asks only relevant questions, preserves all outcomes, and resets ranking and answers', async () => {
   enableDialogInDom();

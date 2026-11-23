@@ -1,8 +1,9 @@
 import { useId, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { readCatalogue } from './client.js';
-import { SchemeCard } from './presentation.jsx';
+import { dataset, readCatalogue } from './client.js';
+import { displayLabel, SchemeCard } from './presentation.jsx';
+import { stateNames } from './regions.js';
 import { PersonalizePanel } from './PersonalizePanel.jsx';
 import { usePersonalization } from './usePersonalization.js';
 
@@ -16,7 +17,6 @@ const filterFields = [
 ];
 const permittedKeys = new Set(['q', 'goal', 'page', 'limit', ...filterFields.map(([key]) => key)]);
 const availability = [['active', 'Active'], ['unknown', 'Unknown'], ['closed', 'Closed']];
-const stateNames = { KA: 'Karnataka', MH: 'Maharashtra', TN: 'Tamil Nadu' };
 const levelNames = { central: 'Central', state: 'State' };
 
 function FilterSelect({ name, label, options, value, update }) {
@@ -38,14 +38,17 @@ function FilterSelect({ name, label, options, value, update }) {
 function getOptions(key, values) {
   if (key === 'lifecycleStatus') return availability;
   const labels = key === 'state' ? stateNames : key === 'governmentLevel' ? levelNames : {};
-  return (values ?? []).map(value => [value, Object.hasOwn(labels, value) ? labels[value] : value]);
+  return (values ?? []).map(value => [value, Object.hasOwn(labels, value) ? labels[value]
+    : ['category', 'benefitType'].includes(key) ? displayLabel(value) : value]);
 }
 
 export function CataloguePage({ answers, setAnswers }) {
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const [panelOpen, setPanelOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const personalizeButton = useRef(null);
+  const resultsHeading = useRef(null);
   const apiParams = new URLSearchParams([...params].filter(([key]) => permittedKeys.has(key)));
   apiParams.sort();
 
@@ -83,9 +86,15 @@ export function CataloguePage({ answers, setAnswers }) {
   function search(event) {
     event.preventDefault();
     update('q', String(new FormData(event.currentTarget).get('q')).trim());
+    resultsHeading.current?.focus();
   }
 
-  const activeFilters = filterFields.some(([key]) => params.has(key)) || params.has('goal');
+  function chooseCategory(category) {
+    update('category', category === params.get('category') ? '' : category);
+    resultsHeading.current?.focus();
+  }
+
+  const activeFilters = [...filterFields.map(([key]) => key), 'goal'].filter(key => params.has(key)).length;
   const pagination = catalogue.data?.pagination;
   const total = pagination?.total;
 
@@ -93,21 +102,36 @@ export function CataloguePage({ answers, setAnswers }) {
     <>
       <section className="hero">
         <div className="shell hero-inner">
-          <h1>Discover government schemes</h1>
-          <p>Search by what you want to do, from finding study support to improving your home.</p>
-          <form role="search" onSubmit={search} className="search-form" key={params.get('q')}>
-            <label htmlFor="scheme-search" className="sr-only">Search schemes</label>
-            <input id="scheme-search" name="q" type="search" maxLength={160}
-              placeholder="Try solar, books, or training" defaultValue={params.get('q') ?? ''} />
-            <button className="primary-button" type="submit">Search</button>
-          </form>
+          <div className="hero-copy">
+            <p className="hero-eyebrow">Indian government schemes</p>
+            <h1>Find government support <span>that fits your needs.</span></h1>
+            <p className="hero-lede">Explore central and state schemes, compare benefits, and check requirements before you apply.</p>
+            <form role="search" onSubmit={search} className="search-form" key={params.get('q')}>
+              <label htmlFor="scheme-search" className="sr-only">Search schemes</label>
+              <span className="search-icon" aria-hidden="true" />
+              <input id="scheme-search" name="q" type="search" maxLength={160}
+                placeholder="Try solar, books, or training" defaultValue={params.get('q') ?? ''} />
+              <button className="primary-button" type="submit">Search</button>
+            </form>
+            {facets.data?.categories?.length > 0 && (
+              <div className="quick-categories" role="group" aria-label="Browse by category">
+                {facets.data.categories.slice(0, 3).map(category => (
+                  <button key={category} type="button" aria-pressed={params.get('category') === category}
+                    onClick={() => chooseCategory(category)}>{displayLabel(category)}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="hero-visual" aria-hidden="true" />
         </div>
       </section>
       <div className="shell catalogue-layout">
         <aside className="filters" aria-labelledby="filters-heading">
           <div className="filter-heading">
             <h2 id="filters-heading">Filters</h2>
-            {activeFilters && <button className="text-link" type="button" onClick={() => {
+            <button className="filter-toggle" type="button" aria-controls="catalogue-filters" aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen(open => !open)}>Filters{activeFilters > 0 && ` (${activeFilters})`}</button>
+            {activeFilters > 0 && <button className="text-link" type="button" onClick={() => {
               const next = new URLSearchParams(params);
               for (const [field] of filterFields) next.delete(field);
               next.delete('goal');
@@ -115,26 +139,28 @@ export function CataloguePage({ answers, setAnswers }) {
               setParams(next);
             }}>Clear filters</button>}
           </div>
-          {facets.isError && <p className="muted">Some filter options are unavailable.</p>}
-          {filterFields.map(([key, label, facet]) => (
-            <FilterSelect key={key} name={key} label={label} options={getOptions(key, facets.data?.[facet])}
-              value={params.get(key) ?? ''} update={update} />
-          ))}
-          <p className="filter-hint">A state selection also includes nationwide central schemes.</p>
-          <div className="personalize-actions">
-            <button className="secondary-button" type="button" aria-haspopup="dialog" ref={personalizeButton}
-              disabled={!schemeIds} onClick={() => setPanelOpen(true)}>Personalize Results</button>
-            {answers !== null && <button className="text-link" type="button"
-              onClick={() => {
-                setAnswers(null);
-                personalizeButton.current?.focus();
-              }}>Reset personalization</button>}
+          <div className="filter-options" id="catalogue-filters" data-open={filtersOpen}>
+            {facets.isError && <p className="muted">Some filter options are unavailable.</p>}
+            {filterFields.map(([key, label, facet]) => (
+              <FilterSelect key={key} name={key} label={label} options={getOptions(key, facets.data?.[facet])}
+                value={params.get(key) ?? ''} update={update} />
+            ))}
+            <p className="filter-hint">A state selection also includes nationwide central schemes.</p>
           </div>
         </aside>
         <section className="results" aria-labelledby="results-heading">
           <div className="results-heading">
-            <h2 id="results-heading">Schemes</h2>
-            {total !== undefined && <p role="status">{total} {total === 1 ? 'result' : 'results'}</p>}
+            <div><h2 id="results-heading" ref={resultsHeading} tabIndex={-1}>Explore schemes</h2>
+              {total !== undefined && <p role="status">{total} {total === 1 ? 'result' : 'results'}{params.get('q') && ` for “${params.get('q')}”`}</p>}
+            </div>
+            <div className="personalize-actions">
+              <button className="secondary-button" type="button" aria-haspopup="dialog" ref={personalizeButton}
+                disabled={!schemeIds} onClick={() => setPanelOpen(true)}>Personalize Results</button>
+              {answers !== null && <button className="text-link" type="button" onClick={() => {
+                setAnswers(null);
+                (personalizeButton.current?.disabled ? resultsHeading : personalizeButton).current?.focus();
+              }}>Reset personalization</button>}
+            </div>
           </div>
           {answers !== null && schemeIds && (
             <div className="personalization-note">
@@ -148,13 +174,15 @@ export function CataloguePage({ answers, setAnswers }) {
               ) : (
                 <p role="status">{questions.isPending || personalization.pending
                   ? 'Checking your answers…'
-                  : 'Personalized ranking applies to this page. Match results are informational.'}</p>
+                  : 'Results on this page are ranked using your answers. Matches are estimates; the issuer confirms eligibility.'}</p>
               )}
             </div>
           )}
-          {catalogue.isPending && <p role="status" className="empty-state">Loading schemes…</p>}
+          {catalogue.isPending && <div className="empty-state" role="status"><p>Loading schemes…</p>
+            <div className="skeleton-lines" aria-hidden="true"><span /><span /><span /></div></div>}
           {catalogue.isError && (
             <div role="alert" className="empty-state">
+              <h3>Unable to load schemes</h3>
               <p>{catalogue.error.message}</p>
               <button type="button" className="secondary-button" onClick={() => catalogue.refetch()}>Retry</button>
               {params.size > 0 && <button type="button" className="text-link" onClick={() => setParams({})}>Reset search</button>}
@@ -162,9 +190,9 @@ export function CataloguePage({ answers, setAnswers }) {
           )}
           {catalogue.isSuccess && results.length === 0 && (
             <div className="empty-state">
-              <h3>{params.size > 0 ? 'No schemes on this page' : 'The catalogue is empty'}</h3>
+              <h3>{params.size > 0 ? 'No schemes found' : dataset === 'synthetic' ? 'No demo schemes loaded' : 'The catalogue is empty'}</h3>
               {params.size > 0
-                ? <button type="button" className="text-link" onClick={() => setParams({})}>Reset search</button>
+                ? <><p>Try a different keyword or broaden your filters.</p><button type="button" className="text-link" onClick={() => setParams({})}>Reset search</button></>
                 : <p>Listings appear here once source-backed records are imported.</p>}
             </div>
           )}
