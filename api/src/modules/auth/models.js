@@ -49,6 +49,7 @@ export function createAccountModels(connection) {
     schemeId: { type: Schema.Types.ObjectId, ref: 'Scheme', required: true, immutable: true },
   }, { collection: 'bookmarks', timestamps: { createdAt: true, updatedAt: false } });
   bookmark.index({ userId: 1, schemeId: 1 }, { unique: true });
+  bookmark.index({ schemeId: 1, createdAt: 1 });
   bookmark.index({ userId: 1, createdAt: -1, _id: -1 });
 
   return {

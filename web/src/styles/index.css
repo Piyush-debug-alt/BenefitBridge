@@ -138,6 +138,10 @@ a, button, input, select { outline-offset: 4px; }
 .bookmark-list { display: grid; gap: .75rem; }
 .bookmark-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .bookmark-actions { margin-top: 1rem; }
+.notification-list { display: grid; gap: .85rem; }
+.notification-list li { padding: .85rem 0 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.notification-list button { margin-top: .45rem; }
+.notification-title { font-weight: 700; }
 
 @media (max-width: 45rem) {
   .shell { width: calc(100% - 1.75rem); }

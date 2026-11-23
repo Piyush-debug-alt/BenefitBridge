@@ -5,6 +5,7 @@ import { mountPasswordRoutes } from './password.js';
 import { requireOrigin } from './security.js';
 import { createSessions, publicUser } from './session.js';
 import { mountAccountRoutes } from '../account/routes.js';
+import { mountNotificationRoutes } from '../notifications/routes.js';
 
 export function accountRouter(models, dataset, config, services = {}) {
   const router = Router();
@@ -26,5 +27,6 @@ export function accountRouter(models, dataset, config, services = {}) {
   router.use('/me', sessions.requireUser);
   router.get('/me', (req, res) => res.json({ user: publicUser(req.user) }));
   mountAccountRoutes(router, models, dataset, origin);
+  mountNotificationRoutes(router, models, origin);
   return router;
 }

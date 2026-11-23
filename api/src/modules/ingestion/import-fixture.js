@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { parseFixture } from './file-adapter.js';
+import { queuePublication } from '../notifications/events.js';
 
-async function attachEligibility(SchemeRuleVersion, schemeId, schemeVersionId, rule, externalRecordId) {
+export async function attachEligibility(SchemeRuleVersion, schemeId, schemeVersionId, rule, externalRecordId) {
   if (!rule) return;
 
   const existing = await SchemeRuleVersion.findOneAndUpdate(
@@ -16,7 +17,7 @@ async function attachEligibility(SchemeRuleVersion, schemeId, schemeVersionId, r
 
 export async function importFixture(models, dataset, input) {
   const { source, records, retrievedAt } = parseFixture(input, dataset);
-  const { Source, SourceRecord, Scheme, SchemeVersion, SchemeRuleVersion } = models;
+  const { Source, SourceRecord, Scheme, SchemeVersion, SchemeRuleVersion, ChangeEvent } = models;
   const { id: sourceId, ...sourceFields } = source;
   await Source.updateOne({ _id: sourceId, dataset }, { $setOnInsert: sourceFields }, {
     upsert: true,
@@ -35,11 +36,14 @@ export async function importFixture(models, dataset, input) {
     }, { upsert: true, new: true, runValidators: true, timestamps: false }).lean();
 
     if (scheme.publicationStatus !== 'draft') {
-      const current = await SchemeVersion.findById(scheme.currentVersionId).select('recordHash').lean();
-      if (scheme.publicationStatus !== 'published' || !current || current.recordHash !== recordHash) {
+      const current = await SchemeVersion.findById(scheme.currentVersionId).select('recordHash versionNo').lean();
+      const initial = current?.versionNo > 1 && current.recordHash !== recordHash
+        ? await SchemeVersion.findOne({ schemeId: scheme._id, versionNo: 1 }).select('recordHash').lean()
+        : current;
+      if (scheme.publicationStatus !== 'published' || initial?.recordHash !== recordHash) {
         throw new Error('A changed or quarantined record requires review: ' + externalRecordId);
       }
-      await attachEligibility(SchemeRuleVersion, scheme._id, current._id, eligibility, externalRecordId);
+      await attachEligibility(SchemeRuleVersion, scheme._id, initial._id, eligibility, externalRecordId);
       skipped += 1;
       continue;
     }
@@ -57,6 +61,9 @@ export async function importFixture(models, dataset, input) {
       throw new Error('Retry the initial import with its original record: ' + externalRecordId);
     }
     await attachEligibility(SchemeRuleVersion, scheme._id, version._id, eligibility, externalRecordId);
+    if (fields.verificationStatus === 'verified') {
+      await queuePublication(ChangeEvent, dataset, scheme._id, version);
+    }
 
     const result = await Scheme.updateOne({ _id: scheme._id, publicationStatus: 'draft' }, {
       $set: { ...fields, lastSyncedAt: retrievedAt, currentVersionId: version._id, publicationStatus: 'published' },

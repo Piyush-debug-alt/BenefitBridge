@@ -7,6 +7,9 @@
     "demo": "node --watch --env-file-if-exists=.env.demo src/server.js --demo",
     "seed:demo": "node --env-file-if-exists=.env.demo src/modules/ingestion/cli.js --demo",
     "seed:authorized": "node --env-file-if-exists=.env src/modules/ingestion/cli.js",
+    "notifications": "node --env-file-if-exists=.env src/modules/notifications/worker-cli.js",
+    "notifications:demo": "node --env-file-if-exists=.env.demo src/modules/notifications/worker-cli.js --demo",
+    "publish:demo": "node --env-file-if-exists=.env.demo src/modules/notifications/demo-cli.js",
     "test": "vitest run --testTimeout=15000 --hookTimeout=120000"
   },
   "dependencies": {

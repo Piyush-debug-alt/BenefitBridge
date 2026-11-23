@@ -33,6 +33,7 @@ export function createGoogleProvider(google) {
       return client.buildAuthorizationUrl(await configuration(), {
         redirect_uri: google.redirectUri,
         scope: 'openid email',
+        prompt: 'select_account',
         code_challenge: await client.calculatePKCECodeChallenge(attempt.verifier),
         code_challenge_method: 'S256',
         nonce: attempt.nonce,

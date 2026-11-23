@@ -84,7 +84,11 @@ Run `npm.cmd run demo:api` and `npm.cmd run demo:web` in separate terminals. Ope
 3. For regular development, run `Copy-Item api/.env.example api/.env` if the destination is absent. Enter the ID and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. For the demo, copy `api/.env.demo.example` to `api/.env.demo` and set `DEMO_GOOGLE_CLIENT_ID` and `DEMO_GOOGLE_CLIENT_SECRET`. These files are ignored by Git.
 4. Restart the API and open the account page on the same host and port as the configured redirect URI. Select **Continue with Google**. An existing password account keeps its original sign-in method even if Google returns the same email. [Google Auth Platform setup](https://support.google.com/cloud/answer/15544987) · [Google OpenID Connect web server flow](https://developers.google.com/identity/openid-connect/openid-connect)
 
+If BenefitBridge says **This email already has a sign-in method**, Google returned a verified email already used by a different BenefitBridge sign-in identity. Sign out of BenefitBridge, add a different Google account under **Google Auth Platform → Audience → Test users** if the OAuth app uses External testing, and select that account from Google's chooser. Use an email that has never been registered with a password in the demo. A separate browser profile or private window can make the choice easier. Existing accounts retain their original sign-in method. [Google test users](https://support.google.com/cloud/answer/15549945) · [Google account chooser](https://developers.google.com/identity/openid-connect/openid-connect)
+
 ### Email verification and password recovery
+
+Phase 4 uses in-app alerts only. Live SMTP, password-reset email delivery, email verification delivery and scheme notification emails are deferred. Leave SMTP settings blank for the in-app demo. The existing local sandbox instructions below apply when testing the earlier identity email flow separately.
 
 Loopback development without SMTP supports local test registration and displays those accounts as unverified. To exercise verification and recovery, start a local SMTP test inbox, set `SMTP_URL=smtp://127.0.0.1:1025` and `MAIL_FROM=noreply@example.test` in `api/.env`, or use the corresponding `DEMO_` settings in `api/.env.demo`. Restart the API. Register, then open the verification link from the inbox. Use **Forgot password?** on the sign-in screen to test recovery. Existing unverified local accounts can use **Resend verification email** once SMTP is configured. A non-loopback SMTP server uses TLS.
 
@@ -93,6 +97,23 @@ Loopback development without SMTP supports local test registration and displays 
 The browser receives a random session ID in an HttpOnly cookie. MongoDB stores its hash and a seven-day expiry. The API checks the session and derives the owner for all profile and bookmark operations. Sign-in rotates the session, logout revokes it, and password reset invalidates every previous session for that account. Account writes require the configured same-origin frontend. HTTPS origins use Secure host-only cookies. Local loopback HTTP is for development.
 
 Saving a profile requires an explicit consent checkbox and an account request. Copying current answers into the profile form leaves them as a draft until saved. Signing out clears questionnaire answers in the current tab. Account and profile data live in the selected MongoDB database, so configure database access controls, encrypted storage and backups for a public deployment. Rate limiting is currently per API process. Deploy with an HTTPS reverse proxy and keep API and frontend on one origin.
+
+## In-app notification demo
+
+1. Start MongoDB, run `npm.cmd run seed:demo`, and run `npm.cmd run demo:api` and `npm.cmd run demo:web` in separate terminals.
+2. Sign in at the [demo account page](http://127.0.0.1:5174/account). Bookmark **Learning Materials Grant** on its scheme page. In **Account**, save a profile with age **27** and **Yes** for currently studying. Check the consent box before saving.
+3. Open **Notifications**, enable both preferences, and save. Preferences start off. Enable them and save the profile before publishing, since older publications do not trigger catch-up alerts.
+4. From the project root, publish both synthetic fixtures and process the queue.
+
+   ```powershell
+   npm.cmd run publish:demo -- update
+   npm.cmd run publish:demo -- new
+   npm.cmd run notifications:demo -- --once
+   ```
+
+5. Select **Refresh notifications**. Expect **Verified scheme update** for the learning grant and **Potential profile match** for **Demo Campus Materials Award**. Mark either notification read or unread. Rerun the worker or the publication commands to check that the inbox does not gain duplicates.
+
+Run `npm.cmd run notifications:demo` without `--once` to process the demo queue continuously, or `npm.cmd run notifications` for the regular database. Each synthetic fixture publishes once per demo database. A fresh isolated demo MongoDB instance gives you a repeatable first-publication test while preserving an existing demo database and its accounts. The worker waits for the exact version to be published and verified, and holds disputed versions. Profile alerts require an active scheme with a verified rule yielding a potential match and separate notification consent. The synthetic update exercises an immutable revision and preserves the original catalogue version. A real-source reviewer interface, category-level preferences, and email delivery are deferred.
 
 ## Checks
 
@@ -113,3 +134,4 @@ API integration tests start a temporary MongoDB instance. On the first run they 
 - `POST /api/v1/matches/evaluate` accepts JSON with `schemeIds` and an `answers` object. It returns ranked outcomes and condition explanations without storing the answers.
 - `/api/v1/auth` provides password registration, login, logout, Google sign-in, email verification, and password reset.
 - `GET /api/v1/me`, `GET/PUT/DELETE /api/v1/me/profile`, and the `/api/v1/me/bookmarks` list, create, lookup and delete routes require a valid session.
+- `GET /api/v1/me/notifications`, `PATCH /api/v1/me/notifications/:notificationId`, and `GET/PUT /api/v1/me/notification-preferences` require a valid session and scope operations to the current account.

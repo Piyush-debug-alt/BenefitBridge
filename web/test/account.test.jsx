@@ -156,3 +156,37 @@ it('consumes an email verification link with a POST body', async () => {
   await screen.findByText('Email verified.');
   expect(api.mock.calls.every(([url]) => !url.includes(token))).toBe(true);
 });
+
+it('shows the in-app inbox, saves preferences, and toggles read status', async () => {
+  let settings = { bookmarkUpdates: false, profileMatches: false };
+  let readAt = null;
+  const api = vi.fn(async (url, { method, body }) => {
+    if (url.endsWith('/me')) return response({ user: signedInUser });
+    if (url.endsWith('/notification-preferences')) {
+      if (method === 'PUT') settings = JSON.parse(body);
+      return response({ preferences: settings });
+    }
+    if (method === 'PATCH') {
+      readAt = JSON.parse(body).read ? fixedDate : null;
+      return response({ readAt });
+    }
+    return response({
+      items: [{ _id: 'notification-id', schemeId: scheme._id, schemeName: scheme.canonicalName,
+        type: 'bookmark_update', createdAt: fixedDate, readAt }],
+      unread: readAt ? 0 : 1,
+      totalPages: 1,
+    });
+  });
+  vi.stubGlobal('fetch', api);
+  const user = renderApp('/account/notifications');
+  await screen.findByText('1 unread');
+  expect(screen.getByRole('link', { name: scheme.canonicalName }).getAttribute('href')).toBe('/schemes/' + scheme._id);
+  await user.click(await screen.findByRole('checkbox', { name: /verified updates/i }));
+  await user.click(screen.getByRole('button', { name: 'Save preferences' }));
+  await screen.findByText('Notification preferences saved.');
+  expect(settings).toEqual({ bookmarkUpdates: true, profileMatches: false });
+  await user.click(screen.getByRole('button', { name: 'Mark read' }));
+  await screen.findByText('0 unread');
+  await user.click(screen.getByRole('button', { name: 'Mark unread' }));
+  await screen.findByText('1 unread');
+});

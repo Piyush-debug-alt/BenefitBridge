@@ -10,6 +10,9 @@
     "demo:web": "npm run demo -w web",
     "seed:demo": "npm run seed:demo -w api",
     "seed:authorized": "npm run seed:authorized -w api --",
+    "notifications": "npm run notifications -w api --",
+    "notifications:demo": "npm run notifications:demo -w api --",
+    "publish:demo": "npm run publish:demo -w api --",
     "test": "npm test --workspaces",
     "build": "npm run build -w web"
   }

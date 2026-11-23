@@ -13,7 +13,7 @@ const endpoints = {
 };
 const googleMessages = {
   failed: 'Google sign-in could not be completed. Try again.',
-  'use-original-sign-in': 'This email already has a sign-in method. Use the original method to access your account.',
+  'use-original-sign-in': 'This email already has a sign-in method. Sign in with the original method, or select a different Google account.',
 };
 
 export function useAuthOptions() {
