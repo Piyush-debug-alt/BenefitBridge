@@ -8,7 +8,7 @@ export function createExtractionModels(connection) {
       type: String, enum: ['queued', 'running', 'ready', 'review_required', 'failed'],
     },
     availableAt: Date, startedAt: Date, finishedAt: Date, attempts: { type: Number, default: 0 },
-    lease: String, processingMs: Number, errorCode: String, result: Schema.Types.Mixed,
+    lease: String, processingMs: Number, errorCode: String, failureDiagnostic: Schema.Types.Mixed, result: Schema.Types.Mixed,
   }, { collection: 'eligibility_extractions', timestamps: true });
   job.index({ dataset: 1, sourceId: 1, externalRecordId: 1, inputHash: 1,
     provider: 1, providerVersion: 1, policyVersion: 1 }, { unique: true });

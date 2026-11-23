@@ -123,7 +123,7 @@ export async function publishReview(models, review) {
   const approved = review.extractionDecision?.status === 'approved' ? review.extractionDecision : null;
   const previousFields = !eligibility && !approved && previousRule?.extractionProvenance &&
     (await SchemeVersion.findById(review.baseVersionId).select('fields').lean())?.fields;
-  const retain = retainApprovedRule(previousFields, previousRule, record);
+  const retain = retainApprovedRule(previousFields, previousRule, record, fieldProvenance);
   const rule = approved?.rule ?? eligibility ?? (retain ? previousRule.rule : undefined);
   const { rule: _approvedRule, ...provenance } = approved ?? {};
   await attachEligibility(SchemeRuleVersion, scheme._id, version._id, rule, externalRecordId,

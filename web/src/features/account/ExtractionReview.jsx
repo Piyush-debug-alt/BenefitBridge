@@ -21,13 +21,35 @@ const warningText = {
   CONTRADICTORY_OR_INVALID_RULE: 'The conditions contradict each other or the rule is invalid.',
   COMPLEX_ALTERNATIVES: 'The source has more alternatives than this rule format supports.',
   TOO_MANY_CONDITIONS: 'The source exceeds the number of conditions supported in a pathway.',
+  UNSUPPORTED_QUESTION_SUGGESTION: 'A question suggestion is repeated or lacks a corresponding condition.',
+  UNRESOLVED_MODEL_CONDITION: 'The model flagged this quoted condition for manual review.',
+};
+
+const extractionErrors = {
+  GEMINI_DAILY_LIMIT: 'The local Gemini request allowance is exhausted. Extraction can resume on the next UTC day.',
+  GEMINI_QUOTA_COOLDOWN: 'Gemini rate limited the worker. The next request will wait until the cooldown ends.',
+  GEMINI_QUOTA_EXHAUSTED: 'Gemini returned a quota or rate limit error. The catalogue review can continue independently.',
+  GEMINI_ACCESS_DENIED: 'Google denied access. Check the API key and project settings.',
+  GEMINI_MODEL_UNAVAILABLE: 'Google did not find the configured model for this project. Check availability in AI Studio.',
+  GEMINI_BUDGET_STORAGE_FAILED: 'The worker could not reserve a Gemini request slot in MongoDB.',
+  GEMINI_INVALID_RESPONSE: 'The Gemini endpoint returned an unreadable response.',
 };
 
 function Preview({ value }) {
   if (!value) return null;
+  const issues = value.outputDiagnostic?.issues ?? value.validationIssues ?? [];
   return (
     <>
       <p role="status">{value.valid ? 'Evidence checks passed. Reviewer approval is still required.' : 'This draft needs review before approval.'}</p>
+      {value.outputDiagnostic && <p>
+        {value.outputDiagnostic.stage.replaceAll('_', ' ')}
+        {value.outputDiagnostic.finishReason && ' · ' + value.outputDiagnostic.finishReason}
+      </p>}
+      {issues.length > 0 && <ul className="detail-list">
+        {issues.map(({ field, reason, expected }, i) => (
+          <li key={field + i}><code>{field}</code> · {reason.replaceAll('_', ' ')}{expected && ' · expected ' + expected}</li>
+        ))}
+      </ul>}
       {value.warnings?.length > 0 && <ul className="detail-list">
         {value.warnings.map(({ code, quote }, i) => (
           <li key={code + i}>{warningText[code] ?? code}{quote && <> <q>{quote}</q></>}</li>
@@ -89,7 +111,8 @@ function Editor({ data, path, onDecision }) {
       </label>
       {preview?.questions?.map(question => (
         <label key={question.id}>Wording for {question.id}
-          <select className="question-input" value={wording[question.id] ?? 'standard'}
+          <select className="question-input" value={wording[question.id] ??
+            (question.label === question.wording.alternate ? 'alternate' : 'standard')}
             onChange={event => setWording(value => ({ ...value, [question.id]: event.target.value }))}>
             <option value="standard">{question.wording.standard}</option>
             <option value="alternate">{question.wording.alternate}</option>
@@ -123,7 +146,16 @@ export function ExtractionReview({ reviewId, reviewStatus, onDecision }) {
       {data && (
         <>
           <p>{data.extraction.provider} · {data.extraction.providerVersion} · {data.extraction.status.replaceAll('_', ' ')}</p>
-          {data.extraction.errorCode && <p role="alert">{data.extraction.errorCode}</p>}
+          {data.extraction.errorCode && <p role="alert">{extractionErrors[data.extraction.errorCode] ?? data.extraction.errorCode}</p>}
+          {data.extraction.failureDiagnostic && <p className="muted">
+            {[
+              data.extraction.failureDiagnostic.source,
+              data.extraction.failureDiagnostic.category?.replaceAll('_', ' '),
+              data.extraction.failureDiagnostic.httpStatus && 'HTTP ' + data.extraction.failureDiagnostic.httpStatus,
+              data.extraction.failureDiagnostic.googleReason,
+              data.extraction.failureDiagnostic.transportCode,
+            ].filter(Boolean).join(' · ')}
+          </p>}
           <details><summary>Source text and provenance</summary>
             <p>{data.extraction.input.url} · {data.extraction.input.field}</p>
             <blockquote>{data.extraction.input.text}</blockquote>

@@ -241,8 +241,8 @@ The runner creates a temporary standalone MongoDB process with a dedicated `bene
 
 ### Provider, evidence and cost
 
-- The worker reads `AI_EXTRACTION_PROVIDER=off|mock` for regular development and `DEMO_AI_EXTRACTION_PROVIDER=off|mock` for the isolated demo. The default is `off`. The mock is a local deterministic implementation and has no service fees. The project has no hosted adapter configured. A future provider must implement the bounded `extract({ text, signal })` contract and keep credentials in ignored server-side environment files. Use of a hosted endpoint would depend on its pricing and approval to send the source text.
-- The worker queues extraction for a staged source change and reuses results by source record, source-text hash, provider version and validation version. The adapter receives only the retained eligibility text or, when absent, the retained description. The job records its timestamps, status and retry attempts. AI work runs after the sync pass, so retries and provider failures do not roll back the ingestion checkpoint.
+- The worker reads `AI_EXTRACTION_PROVIDER=off|mock|gemini` for regular development and `DEMO_AI_EXTRACTION_PROVIDER=off|mock|gemini` for the isolated demo. The default is `off`. The mock runs locally and can fall back to the retained description. Gemini receives only the retained eligibility text and requires an explicit source allowlist for authorized data.
+- The worker queues extraction for a staged source change and reuses results by source record, evidence hash, provider version and validation version. Only completed synchronization observations with an open review can start extraction. The job records its timestamps, status and retry attempts. Provider failures leave the ingestion checkpoint and catalogue review available.
 - The server checks the structured proposal, verifies exact source quotes and their meaning under the supported English grammar, compares mandatory conditions and alternatives with the retained source, and flags missing, unsupported, ambiguous, contradictory or instruction-like text. Ambiguous and unsupported wording requires manual interpretation. The review editor can repair a provider draft using supported evidence and can choose vetted alternate question wording. Cases that still have warnings can use the ordinary source-review workflow.
 - The existing review authorization and origin checks protect the extraction endpoints. Human approval attaches the exact validated rule, per-condition evidence, and reviewer decision to publication. The immutable rule lives in `scheme_rule_versions` and the proposal in `eligibility_extractions`. Search and personalization use the published rule with the deterministic matcher, including the same three outcomes.
 
@@ -255,6 +255,42 @@ npm.cmd run build
 ```
 
 Evaluation uses a dedicated set of original fictional examples and the local provider. The [measured M6 evaluation](docs/M6_EVALUATION.md) describes accuracy, refusal outcomes, latency and limitations.
+
+### Gemini free-tier setup on Windows
+
+1. In Google AI Studio, select the project that will own the key. Confirm its **Billing Tier** is **Free** with billing unlinked and inspect that project's rate limits for `gemini-3.1-flash-lite`. If it is unavailable, check `gemini-3.5-flash-lite` under the same Free project and select that name explicitly. If neither is available, leave Gemini disabled. The API key and the model name alone cannot tell BenefitBridge the project's billing tier. [AI Studio projects](https://aistudio.google.com/projects) · [Rate limits](https://aistudio.google.com/rate-limit) · [Gemini billing](https://aistudio.google.com/docs/billing)
+2. Create or select an [AI Studio API key](https://aistudio.google.com/api-keys) for that Free project. From the repository root in PowerShell, create the ignored backend file if needed and open it locally.
+
+   ```powershell
+   if (-not (Test-Path -LiteralPath .\api\.env)) { Copy-Item .\api\.env.example .\api\.env }
+   notepad .\api\.env
+   ```
+
+   Set the entries below in `api/.env`. Replace the placeholder locally, or edit the existing entries if they are already present. Keep ingestion off for this first evaluation.
+
+   ```dotenv
+   AI_EXTRACTION_PROVIDER=off
+   GEMINI_API_KEY=your_free_project_key_here
+   GEMINI_MODEL=gemini-3.1-flash-lite
+   GEMINI_FREE_TIER_CONFIRMED=true
+   GEMINI_DAILY_REQUEST_LIMIT=10
+   ```
+
+3. With MongoDB running at the configured `MONGODB_URI`, run the command below **only after confirming the tier and model**. It makes at most one live Gemini request against a fictional case and compares the candidate with the independently labeled answer and mock output. It does not stage or publish catalogue data.
+
+   ```powershell
+   npm.cmd run evaluate:extraction -- --provider=gemini --live --limit=1
+   ```
+
+   Once that succeeds, use up to five cases per invocation. Supply `--offset=5` or `--offset=10` with a limit that fits the 13-case fixture to reach the later cases. The report includes proposed and reference pathways, questionnaire checks, latency, and returned token counts. Running without `--live` and without a provider flag evaluates the mock and makes no Gemini requests.
+
+Each outbound attempt, including a retry, uses one slot from a durable counter shared by workers and manual evaluation on the same MongoDB deployment. The default is 10 per UTC day. On HTTP 429 the worker pauses further requests using Google's `Retry-After` header when available, or a one-minute cooldown otherwise. The worker makes at most three attempts per extraction job, and the manual evaluator makes one attempt per case. Keep the MongoDB deployment and request-limit setting consistent across workers that share the same Google project. Google may impose a lower limit. [Gemini rate limits](https://aistudio.google.com/docs/rate-limits)
+
+If a request fails, the CLI and administrator review show a diagnostic source and category, plus the HTTP status when Google's endpoint returned one. A transport failure can show a recognized DNS, connection, or TLS code. A local quota or MongoDB failure is labeled as an application failure. A successful read-only model lookup can confirm that the key can see the model and that the model advertises `generateContent`. Generation access and quota still depend on the project. [Google model metadata](https://aistudio.google.com/api-reference/models) · [Troubleshooting Gemini](https://aistudio.google.com/docs/troubleshooting)
+
+For a generation that returns HTTP 200, `outputDiagnostic` identifies rejected Gemini output by stage, field path, and reason. A proposal that decodes successfully can still have `validationIssues` for an unsupported question, mismatched source quote, or incorrect AND/OR grouping. These diagnostics omit response text and field values. A rejected output remains available for administrator review and does not trigger a retry.
+
+For a later ingestion test with fictional data, set the corresponding `DEMO_GEMINI_*` variables and `DEMO_AI_EXTRACTION_PROVIDER=gemini` in the ignored `api/.env.demo`, then follow the M6 review flow above. For an authorized source, set `AI_EXTRACTION_PROVIDER=gemini` and list the source ID under `GEMINI_ALLOWED_SOURCE_IDS` only after confirming its public eligibility excerpts are cleared for transfer to Google. Free-tier processing may be used to improve Google's services. Keep profile answers and other personal data out of source excerpts. The allowlist starts empty, so the PIB pilot is excluded by default. [Gemini data-use terms](https://aistudio.google.com/docs/terms)
 
 ## Checks
 

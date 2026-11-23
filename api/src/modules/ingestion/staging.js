@@ -102,7 +102,8 @@ export async function stageRecord(models, job, source, raw) {
     schemeId: scheme._id, schemeVersionId: scheme.currentVersionId,
   }).select('rule extractionProvenance').lean();
   const { externalRecordId, eligibility, ...fields } = record;
-  const observedRule = eligibility ?? (retainApprovedRule(previous?.fields, previousRule, record) ? previousRule.rule : undefined);
+  const observedRule = eligibility ?? (retainApprovedRule(previous?.fields, previousRule, record, fieldProvenance)
+    ? previousRule.rule : undefined);
   const changed = changedFields(previous?.fields, previousRule?.rule, {
     ...fields, ...(relationships.length && { relationships }), ...(observedRule && { eligibility: observedRule }),
     ...(closureEvidence && { closureEvidence }),

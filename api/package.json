@@ -15,6 +15,7 @@
     "test": "vitest run --testTimeout=15000 --hookTimeout=120000"
   },
   "dependencies": {
+    "@google/genai": "3.3.0",
     "argon2": "^0.45.2",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",

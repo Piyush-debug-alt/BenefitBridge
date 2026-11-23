@@ -2,29 +2,31 @@ import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { digest } from '../ingestion/adapters.js';
 import { validateProposal } from './evidence.js';
+import { ExtractionRequestError } from './gemini-budget.js';
+import { extractProposal } from './providers.js';
 
 const policyVersion = 'evidence-v1';
 const maxAttempts = 3;
 
-export function extractionInput(record) {
+export function extractionInput(record, fieldProvenance) {
   const field = record.eligibilityText ? 'eligibilityText' : 'description';
-  return { text: record[field], field, url: record.sourceRefs[0].url };
+  const url = fieldProvenance?.[field]?.[0]?.url ?? record.sourceRefs[0].url;
+  return { text: record[field], field, url };
 }
 
-export function retainApprovedRule(previousFields, previousRule, nextRecord) {
+export function retainApprovedRule(previousFields, previousRule, nextRecord, fieldProvenance) {
   if (!previousFields || !previousRule?.extractionProvenance || !previousRule.rule?.evidenceUrl) return false;
   const field = previousRule.extractionProvenance.field;
   return Boolean(previousFields[field] && previousFields[field] === nextRecord[field] &&
     extractionInput(nextRecord).field === field &&
-    nextRecord.sourceRefs.some(ref => ref.url === previousRule.rule.evidenceUrl));
+    (fieldProvenance?.[field] ?? nextRecord.sourceRefs).some(ref => ref.url === previousRule.rule.evidenceUrl));
 }
 
 export async function enqueueExtraction(models, review, provider) {
   if (!provider || !review?.normalization || review.extractionDecision || !['pending', 'deferred'].includes(review.status)) return;
-  const input = extractionInput(review.normalization.record);
-  if (!input.text || input.text.length > 4000) return;
-
   const { dataset, sourceId, externalRecordId } = review;
+  const input = extractionInput(review.normalization.record, review.normalization.fieldProvenance);
+  if (!input.text || input.text.length > 4000 || provider.accepts?.({ dataset, sourceId, field: input.field }) === false) return;
   const identity = {
     dataset, sourceId, externalRecordId, inputHash: digest(input),
     provider: provider.id, providerVersion: provider.version, policyVersion,
@@ -42,11 +44,13 @@ async function extractBoundedly(provider, text, timeoutMs) {
   try {
     const timeout = new Promise((_resolve, reject) => {
       timer = setTimeout(() => {
-        reject(new Error('EXTRACTION_TIMEOUT'));
+        reject(new ExtractionRequestError('EXTRACTION_TIMEOUT', {
+          retryable: true, diagnostic: { source: 'application', category: 'timeout' },
+        }));
         controller.abort();
       }, timeoutMs);
     });
-    return await Promise.race([timeout, Promise.resolve().then(() => provider.extract({
+    return await Promise.race([timeout, Promise.resolve().then(() => extractProposal(provider, {
       text, signal: controller.signal,
     }))]);
   } finally {
@@ -54,15 +58,18 @@ async function extractBoundedly(provider, text, timeoutMs) {
   }
 }
 
-export async function processExtractionBatch(models, dataset, sourceId, provider, { limit = 8, timeoutMs = 5000 } = {}) {
-  if (!provider) return 0;
-  const { EligibilityExtraction } = models;
+export async function processExtractionBatch(models, dataset, sourceId, provider, {
+  limit = 8, timeoutMs = provider?.timeoutMs ?? 5000, onFailure,
+} = {}) {
+  if (!provider || provider.accepts?.({ dataset, sourceId }) === false) return 0;
+  const { EligibilityExtraction, ReviewCase, SyncJob } = models;
   const filters = { dataset, sourceId, provider: provider.id, providerVersion: provider.version, policyVersion };
   await EligibilityExtraction.updateMany({
     ...filters, status: 'running', attempts: { $gte: maxAttempts }, availableAt: { $lte: new Date() },
-  }, { $set: { status: 'failed', errorCode: 'EXTRACTION_ATTEMPTS_EXHAUSTED', finishedAt: new Date() }, $unset: { lease: 1 } });
+  }, { $set: { status: 'failed', errorCode: 'EXTRACTION_ATTEMPTS_EXHAUSTED', finishedAt: new Date() },
+    $unset: { lease: 1, failureDiagnostic: 1 } });
   let processed = 0;
-  while (processed < limit) {
+  for (let examined = 0; examined < limit; examined++) {
     const now = new Date();
     const lease = randomUUID();
     const job = await EligibilityExtraction.findOneAndUpdate({
@@ -73,29 +80,49 @@ export async function processExtractionBatch(models, dataset, sourceId, provider
     if (!job) break;
     const begin = performance.now();
     const owned = { _id: job._id, status: 'running', lease };
-    let raw;
+    const reviews = await ReviewCase.find({
+      extractionId: job._id, status: { $in: ['pending', 'deferred'] }, 'extractionDecision.status': { $exists: false },
+    }).select('jobId lastObservedJobId').lean();
+    if (!reviews.length || !await SyncJob.exists({
+      _id: { $in: reviews.map(review => review.lastObservedJobId ?? review.jobId) }, status: 'succeeded',
+    })) {
+      await EligibilityExtraction.updateOne(owned, {
+        $set: { status: 'queued', availableAt: new Date(Date.now() + 60_000) },
+        $inc: { attempts: -1 }, $unset: { lease: 1 },
+      });
+      continue;
+    }
+    let extraction;
     try {
-      raw = await extractBoundedly(provider, job.input.text, timeoutMs);
+      extraction = await extractBoundedly(provider, job.input.text, timeoutMs);
     } catch (error) {
-      const retry = job.attempts < maxAttempts;
+      const errorCode = error instanceof ExtractionRequestError ? error.code
+        : error?.message === 'EXTRACTION_TIMEOUT' ? 'EXTRACTION_TIMEOUT' : 'PROVIDER_UNAVAILABLE';
+      const deferred = error instanceof ExtractionRequestError && error.deferred;
+      const retry = deferred || (job.attempts < maxAttempts && (!(error instanceof ExtractionRequestError) || error.retryable));
+      const diagnostic = error instanceof ExtractionRequestError ? error.diagnostic : undefined;
       await EligibilityExtraction.updateOne(owned, { $set: {
         status: retry ? 'queued' : 'failed',
-        errorCode: error?.message === 'EXTRACTION_TIMEOUT' ? 'EXTRACTION_TIMEOUT' : 'PROVIDER_UNAVAILABLE',
-        availableAt: new Date(Date.now() + 1000 * 2 ** job.attempts),
+        errorCode,
+        ...(diagnostic && { failureDiagnostic: diagnostic }),
+        availableAt: error.retryAt ?? new Date(Date.now() + 1000 * 2 ** job.attempts),
         processingMs: performance.now() - begin,
         ...(!retry && { finishedAt: new Date() }),
-      }, $unset: { lease: 1 } });
+      }, ...(deferred && { $inc: { attempts: -1 } }), $unset: { lease: 1, ...(!diagnostic && { failureDiagnostic: 1 }) } });
+      if (diagnostic) onFailure?.({ provider: provider.id, errorCode, diagnostic });
+      if (deferred) break;
       processed++;
+      if (errorCode === 'GEMINI_QUOTA_EXHAUSTED') break;
       continue;
     }
 
-    const result = validateProposal(job.input, raw);
+    const result = validateProposal(job.input, extraction.proposal, undefined, extraction.outputDiagnostic);
     // Store candidate evidence and warnings only. The publishable rule is derived again during review.
     const { rule: _rule, ...candidate } = result;
     await EligibilityExtraction.updateOne(owned, {
       $set: { result: candidate, status: result.valid ? 'ready' : 'review_required', finishedAt: new Date(),
         processingMs: performance.now() - begin },
-      $unset: { lease: 1, errorCode: 1 },
+      $unset: { lease: 1, errorCode: 1, failureDiagnostic: 1 },
     });
     processed++;
   }

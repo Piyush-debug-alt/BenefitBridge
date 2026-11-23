@@ -20,7 +20,7 @@ async function extractionView(models, review) {
   const extraction = await models.EligibilityExtraction.findOne({
     _id: review.extractionId, dataset: review.dataset, sourceId: review.sourceId,
     externalRecordId: review.externalRecordId,
-    inputHash: digest(extractionInput(review.normalization.record)),
+    inputHash: digest(extractionInput(review.normalization.record, review.normalization.fieldProvenance)),
   }).select('-lease -availableAt').lean();
   if (!extraction) return null;
   const current = review.baseVersionId && await models.SchemeRuleVersion.findOne({
@@ -30,7 +30,10 @@ async function extractionView(models, review) {
 }
 
 function assess(view, draft) {
-  const result = validateProposal(view.extraction.input, draft.proposal ?? view.extraction.result?.proposal, draft.questionWording);
+  const original = view.extraction.result;
+  const result = draft.proposal === undefined && draft.questionWording === undefined && original?.schemaValid === false
+    ? original : validateProposal(view.extraction.input, draft.proposal === undefined ? original?.proposal : draft.proposal,
+      draft.questionWording);
   const { rule, ...preview } = result;
   const existing = [view.currentRule, view.suppliedRule].filter(Boolean);
   const replacesExisting = Boolean(rule) && existing.some(value => comparableRule(value) !== comparableRule(rule));

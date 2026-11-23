@@ -32,8 +32,13 @@ export const eligibilityCondition = z.strictObject({
   value: z.union([z.boolean(), z.number(), z.string().max(2)]),
 }).superRefine(({ attribute, operator, value }, context) => {
   const definition = attributes[attribute];
-  if (!definition.schema.safeParse(value).success || (definition.type !== 'integer' && operator !== 'eq')) {
-    context.addIssue({ code: 'custom', path: ['value'], message: 'This operator or value is invalid for the question.' });
+  const result = definition.schema.safeParse(value);
+  if (!result.success) {
+    for (const issue of result.error.issues) context.addIssue({ ...issue, path: ['value', ...issue.path] });
+  }
+  if (definition.type !== 'integer' && operator !== 'eq') {
+    context.addIssue({ code: 'custom', path: ['operator'], message: 'This question requires equality.',
+      params: { reason: 'operator_requires_equality' } });
   }
 }).transform(condition => ({ ...condition, value: attributes[condition.attribute].schema.parse(condition.value) }));
 
@@ -64,7 +69,8 @@ const path = z.strictObject({
   }
 });
 
-export const questionWordingSchema = z.partialRecord(z.enum(Object.keys(attributes)), z.enum(['standard', 'alternate']));
+export const questionWordingCodeSchema = z.enum(['standard', 'alternate']);
+export const questionWordingSchema = z.partialRecord(z.enum(Object.keys(attributes)), questionWordingCodeSchema);
 
 export const eligibilitySchema = z.strictObject({
   status: z.literal('verified'),

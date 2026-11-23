@@ -38,6 +38,7 @@ export function createSyncModels(connection) {
   review.index({ sourceId: 1, externalRecordId: 1, fingerprint: 1 }, { unique: true });
   review.index({ dataset: 1, status: 1, createdAt: -1 });
   review.index({ dataset: 1, sourceId: 1, status: 1, decidedAt: 1 });
+  review.index({ extractionId: 1, status: 1 });
 
   return {
     SyncSource: connection.model('SyncSource', state), SyncJob: connection.model('SyncJob', job),

@@ -16,7 +16,7 @@
     "sync": "npm run sync -w api --",
     "sync:demo": "npm run sync:demo -w api --",
     "benchmark": "node scripts/benchmark.mjs",
-    "evaluate:extraction": "node scripts/evaluate-extraction.mjs",
+    "evaluate:extraction": "node --env-file-if-exists=api/.env scripts/evaluate-extraction.mjs",
     "test": "npm test --workspaces",
     "build": "npm run build -w web"
   }

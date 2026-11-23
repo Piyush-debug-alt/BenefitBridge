@@ -6,6 +6,7 @@ import { digest, FeedError, fileAdapter, httpAdapter } from './adapters.js';
 import { enqueueSync, scheduleSource, workSource } from './sync.js';
 import { configuredExtractionProvider } from '../extraction/providers.js';
 import { processExtractionBatch } from '../extraction/worker.js';
+import { ExtractionRequestError } from '../extraction/gemini-budget.js';
 
 async function configuredAdapter(dataset, get) {
   const path = get('INGEST_SOURCE_FILE') || (dataset === 'synthetic' && !get('INGEST_ENDPOINT')
@@ -62,7 +63,13 @@ async function run() {
 
     if (!['watch', 'snapshot', 'incremental', 'once'].includes(command)) throw new FeedError('UNKNOWN_COMMAND');
     const adapter = await configuredAdapter(config.dataset, get);
-    const extractionProvider = configuredExtractionProvider(get('AI_EXTRACTION_PROVIDER'));
+    let extractionProvider;
+    try {
+      extractionProvider = configuredExtractionProvider(get('AI_EXTRACTION_PROVIDER'), get, { connection });
+    } catch (error) {
+      if (!(error instanceof ExtractionRequestError)) throw error;
+      console.warn('Eligibility extraction disabled: ' + error.code);
+    }
     const poll = interval(get('INGEST_POLL_MS'), 15 * 60_000, 60_000);
     const reconcile = interval(get('INGEST_RECONCILE_MS'), 24 * 60 * 60_000, 60_000);
     if (command === 'snapshot' || command === 'incremental') {
@@ -73,7 +80,9 @@ async function run() {
       try {
         if (command === 'watch') await scheduleSource(models, config.dataset, adapter, reconcile, poll);
         const result = await workSource(models, config.dataset, adapter, { extractionProvider });
-        const extracted = await processExtractionBatch(models, config.dataset, adapter.metadata.id, extractionProvider);
+        const extracted = await processExtractionBatch(models, config.dataset, adapter.metadata.id, extractionProvider, {
+          onFailure: failure => console.warn('Eligibility extraction failure ' + JSON.stringify(failure)),
+        });
         if (command !== 'watch' || result.jobId || result.reviewed) console.log(result);
         if (extracted) console.log('Processed eligibility proposals: ' + extracted);
         if (command !== 'watch' && ['failed', 'queued', 'interrupted'].includes(result.status)) process.exitCode = 1;
