@@ -20,6 +20,30 @@ const demoEnv = z.object({
   DEMO_TRUST_LOOPBACK_PROXY: proxySetting,
 });
 
+function isDemoAtlasUri(value) {
+  try {
+    const uri = new URL(value);
+    const options = [...uri.searchParams];
+    const allowed = { retryWrites: 'true', w: 'majority', authSource: 'admin' };
+    return uri.protocol === 'mongodb+srv:' && Boolean(uri.username && uri.password) && !uri.port && !uri.hash &&
+      /^[a-z\d-]+(?:\.[a-z\d-]+)*\.mongodb\.net$/i.test(uri.hostname) &&
+      ['', '/', '/benefitbridge_demo'].includes(uri.pathname) &&
+      new Set(uri.searchParams.keys()).size === options.length && options.every(([key, option]) =>
+        key === 'appName' ? option.length > 0 && Buffer.byteLength(option) <= 128 : Object.hasOwn(allowed, key) && option === allowed[key]);
+  } catch {
+    return false;
+  }
+}
+
+const renderEnv = z.object({
+  RENDER: z.literal('true'),
+  RENDER_EXTERNAL_URL: z.url({ protocol: /^https$/, hostname: /^[a-z\d-]+\.onrender\.com$/ })
+    .refine(value => new URL(value).origin === value.replace(/\/$/, ''))
+    .transform(value => new URL(value).origin),
+  PORT: port,
+  DEMO_ATLAS_URI: z.string().max(2048).refine(isDemoAtlasUri),
+});
+
 function read(schema, env) {
   const result = schema.safeParse(env);
   if (!result.success) {
@@ -28,7 +52,20 @@ function read(schema, env) {
   return result.data;
 }
 
-export function readConfig(env = process.env, { demo = false, loadtest = false } = {}) {
+export function readConfig(env = process.env, { demo = false, loadtest = false, renderDemo = false } = {}) {
+  if (renderDemo) {
+    if (demo || loadtest) throw new Error('The Render demo must start in its own deployment mode.');
+    const values = read(renderEnv, env);
+    return {
+      uri: values.DEMO_ATLAS_URI,
+      database: 'benefitbridge_demo',
+      dataset: 'synthetic',
+      origin: values.RENDER_EXTERNAL_URL,
+      port: values.PORT,
+      host: '0.0.0.0',
+      connectionOptions: { maxPoolSize: 10, maxIdleTimeMS: 60_000, serverSelectionTimeoutMS: 15_000 },
+    };
+  }
   if (loadtest) {
     const { LOADTEST_MONGODB_URI } = read(z.object({ LOADTEST_MONGODB_URI: localMongoUri }), env);
     return { uri: LOADTEST_MONGODB_URI, database: 'benefitbridge_loadtest', dataset: 'synthetic' };

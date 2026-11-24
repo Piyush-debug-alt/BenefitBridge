@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: benefitbridge-demo
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    autoDeployTrigger: "off"
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: DEMO_ATLAS_URI
+        sync: false

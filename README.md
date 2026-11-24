@@ -33,6 +33,8 @@ To try all three matching outcomes, leave the search blank and open **Personaliz
 
 The demo uses the dedicated `benefitbridge_demo` database and loopback API port 4001. Its fixtures use reserved `.invalid` source references and the UI labels the catalogue as fictional. Repeat seeding skips unchanged records. The regular app rejects both the demo database name and synthetic API responses. If your local MongoDB port differs, copy `api/.env.demo.example` to `api/.env.demo` and adjust `DEMO_MONGODB_URI`. The demo connection accepts a loopback address with a port.
 
+For the public portfolio demo, follow the [Render Free and MongoDB Atlas Free deployment guide](docs/RENDER_DEMO.md). The hosted entry point uses a separate synthetic database configuration and serves the demo build from Express.
+
 ### Regular development
 
 Use separate terminals:

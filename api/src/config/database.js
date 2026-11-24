@@ -12,6 +12,7 @@ export async function connectDatabase(config) {
     dbName: config.database,
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
+    ...config.connectionOptions,
   });
 
   try {
